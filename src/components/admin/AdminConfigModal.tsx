@@ -4,27 +4,19 @@ import {
   X,
   Sliders,
   Satellite,
-  Radio,
   Save,
-  CheckCircle2,
-  RefreshCw,
   Gauge,
-  Layers,
-  Database,
 } from 'lucide-react';
-import type { District } from '../../types/dashboard';
 
 interface AdminConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  district: District;
   onShowToast: (msg: string) => void;
 }
 
 export const AdminConfigModal: React.FC<AdminConfigModalProps> = ({
   isOpen,
   onClose,
-  district,
   onShowToast,
 }) => {
   // Config state sliders
@@ -32,7 +24,7 @@ export const AdminConfigModal: React.FC<AdminConfigModalProps> = ({
   const [betaParam, setBetaParam] = useState(0.42);
   const [porePressureLimit, setPorePressureLimit] = useState(45);
   const [inclinometerAlarmMm, setInclinometerAlarmMm] = useState(2.0);
-  const [insarSyncFrequencyMin, setInsarSyncFrequencyMin] = useState(15);
+  const [insarSyncFrequencyMin] = useState(15);
   const [capWebhookUrl, setCapWebhookUrl] = useState('https://cap.ndma.gov.in/api/v2/alerts/dispatch');
   const [isSaving, setIsSaving] = useState(false);
 

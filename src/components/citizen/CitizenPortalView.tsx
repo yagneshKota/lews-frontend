@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  AlertTriangle,
   PhoneCall,
   MapPin,
   Camera,
@@ -8,13 +7,11 @@ import {
   Building2,
   Route,
   CheckCircle2,
-  Shield,
   Send,
   MessageSquare,
   LifeBuoy,
-  Zap,
 } from 'lucide-react';
-import type { District, RiskZone, Facility, Road } from '../../types/dashboard';
+import type { District } from '../../types/dashboard';
 
 interface CitizenPortalViewProps {
   district: District;
