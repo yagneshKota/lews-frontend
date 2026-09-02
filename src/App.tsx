@@ -21,12 +21,20 @@ import { RoadsDrawer } from './components/modals/RoadsDrawer';
 import { EmergencyResponseModal } from './components/modals/EmergencyResponseModal';
 import { ActionDetailModal } from './components/modals/ActionDetailModal';
 import { FieldReportsModal } from './components/modals/FieldReportsModal';
+import { LoginModal, PRESET_USERS } from './components/auth/LoginModal';
+import { CitizenPortalView } from './components/citizen/CitizenPortalView';
+import { AdminConfigModal } from './components/admin/AdminConfigModal';
 
 import { dashboardService } from './services/dashboardService';
-import type { District, RiskZone, RecommendedAction } from './types/dashboard';
+import type { District, RiskZone, RecommendedAction, UserProfile } from './types/dashboard';
 import { CheckCircle2, Mountain, Zap } from 'lucide-react';
 
 export function App() {
+  // Frontend-only authentication: login is deliberately simulated for the prototype.
+  const [currentUser, setCurrentUser] = useState<UserProfile>(PRESET_USERS.govt);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(true);
+  const [isAdminConfigOpen, setIsAdminConfigOpen] = useState(false);
   // Navigation State
   const [activeNav, setActiveNav] = useState('dashboard');
 
@@ -95,6 +103,14 @@ export function App() {
   // Handle Sidebar Navigation
   const handleNavigate = (navId: string) => {
     setActiveNav(navId);
+    if (navId === 'settings') {
+      if (currentUser.role === 'admin') {
+        setIsAdminConfigOpen(true);
+      } else {
+        showToast('System calibration is restricted to verified GSI administrators.');
+      }
+      return;
+    }
     if (navId === 'alerts') {
       setIsAlertsDrawerOpen(true);
     } else if (navId === 'risk-zones' || navId === 'live-risk-map') {
@@ -154,6 +170,18 @@ export function App() {
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA] text-[#1E293B]">
+      <LoginModal
+        isOpen={isLoginOpen}
+        currentUser={currentUser}
+        onClose={() => isAuthenticated && setIsLoginOpen(false)}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+          setIsLoginOpen(false);
+          setActiveNav(user.role === 'citizen' ? 'citizen-safety' : 'dashboard');
+          showToast(`Welcome, ${user.name.split(',')[0]}. ${user.badge} access is active.`);
+        }}
+      />
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 bg-[#1B4332] text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-semibold animate-in slide-in-from-bottom-4 border border-[#2D6A4F] max-w-md">
@@ -163,11 +191,13 @@ export function App() {
       )}
 
       {/* 1. Left Navigation Sidebar */}
-      <Sidebar
-        activeNav={activeNav}
-        onNavigate={handleNavigate}
-        criticalAlertsCount={districtData.criticalAlertsCount + (isSimulatedSurge ? 2 : 0)}
-      />
+      {currentUser.role !== 'citizen' && (
+        <Sidebar
+          activeNav={activeNav}
+          onNavigate={handleNavigate}
+          criticalAlertsCount={districtData.criticalAlertsCount + (isSimulatedSurge ? 2 : 0)}
+        />
+      )}
 
       {/* Main App Canvas */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -187,10 +217,25 @@ export function App() {
               handleOpenTriggerAlert(districtData.riskZones[0]);
             }
           }}
+          user={currentUser}
+          onOpenAccount={() => setIsLoginOpen(true)}
+          onSignOut={() => {
+            setIsAuthenticated(false);
+            setIsLoginOpen(true);
+          }}
         />
 
         {/* 3. Main Dashboard Body */}
         <main className="flex-1 p-5 md:p-6 space-y-6 max-w-[1440px] w-full mx-auto">
+          {currentUser.role === 'citizen' ? (
+            <CitizenPortalView
+              district={districtData}
+              isSimulatedSurge={isSimulatedSurge}
+              onOpenGisMap={() => setIsZonesDrawerOpen(true)}
+              onOpenRoads={() => setIsRoadsDrawerOpen(true)}
+              onShowToast={showToast}
+            />
+          ) : <>
           {/* Header Banner & Live Protocol Indicator */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-gradient-to-r from-white via-[#F8FAFC] to-[#F1F5F9] p-4 rounded-2xl border border-[#CBD5E1] shadow-2xs">
             <div>
@@ -315,6 +360,7 @@ export function App() {
               onSelectReport={() => setIsFieldReportsOpen(true)}
             />
           </section>
+          </>}
         </main>
       </div>
 
@@ -376,6 +422,13 @@ export function App() {
         reports={districtData.fieldReports}
         isOpen={isFieldReportsOpen}
         onClose={() => setIsFieldReportsOpen(false)}
+      />
+
+      <AdminConfigModal
+        isOpen={isAdminConfigOpen}
+        onClose={() => setIsAdminConfigOpen(false)}
+        district={districtData}
+        onShowToast={showToast}
       />
     </div>
   );

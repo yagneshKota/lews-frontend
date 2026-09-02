@@ -91,13 +91,13 @@ export const AdminConfigModal: React.FC<AdminConfigModalProps> = ({
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-[#0F172A]">
               <Sliders className="w-4 h-4 text-purple-700" />
-              <span>GSI Empirical I-D Threshold Parameters ($I = \alpha \cdot D^{-\beta}$)</span>
+              <span>GSI Empirical I-D Threshold Parameters (I = α · D⁻ᵝ)</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0]">
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold text-[#334155]">
-                  <span>Scaling Coefficient ($\alpha$)</span>
+                  <span>Scaling Coefficient (α)</span>
                   <span className="font-mono text-purple-700">{alphaParam}</span>
                 </div>
                 <input
@@ -114,7 +114,7 @@ export const AdminConfigModal: React.FC<AdminConfigModalProps> = ({
 
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold text-[#334155]">
-                  <span>Duration Exponent ($\beta$)</span>
+                  <span>Duration Exponent (β)</span>
                   <span className="font-mono text-purple-700">{betaParam}</span>
                 </div>
                 <input
@@ -141,7 +141,7 @@ export const AdminConfigModal: React.FC<AdminConfigModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0]">
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold text-[#334155]">
-                  <span>Critical Pore Pressure ($u_{\text{crit}}$)</span>
+                  <span>Critical Pore Pressure (u-critical)</span>
                   <span className="font-mono text-indigo-700">{porePressureLimit} kPa</span>
                 </div>
                 <input

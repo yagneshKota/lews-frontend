@@ -7,9 +7,13 @@ import {
   Zap,
   Radio,
   Satellite,
+  LogOut,
+  ShieldCheck,
+  UserRound,
 } from 'lucide-react';
 import { AVAILABLE_DISTRICTS } from '../../services/dashboardService';
 import { getRiskColor } from '../../utils/riskUtils';
+import type { UserProfile } from '../../types/dashboard';
 
 interface TopHeaderProps {
   selectedDistrictId: string;
@@ -20,6 +24,9 @@ interface TopHeaderProps {
   isSimulatedSurge: boolean;
   onToggleSimulateSurge: () => void;
   onTriggerInstantAlert: () => void;
+  user: UserProfile;
+  onOpenAccount: () => void;
+  onSignOut: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -30,6 +37,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   isSimulatedSurge,
   onToggleSimulateSurge,
   onTriggerInstantAlert,
+  user,
+  onOpenAccount,
+  onSignOut,
 }) => {
   const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -140,7 +150,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
         {/* Center/Right: Hackathon Demo Simulator + Actions */}
         <div className="flex items-center gap-2.5 flex-wrap justify-end">
-          {/* SIMULATION TRIGGER BUTTON FOR SIH EVALUATION DEMO */}
+          {/* Operational controls are only available to verified response teams. */}
+          {user.role !== 'citizen' && <>
           <button
             onClick={onToggleSimulateSurge}
             title="Simulate sudden Monsoon Cloudburst (+80mm/h) & Earthquake to demonstrate real-time risk escalation"
@@ -166,6 +177,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             <Radio className="w-3.5 h-3.5 text-red-400" />
             <span>Dispatch CAP Alert</span>
           </button>
+          </>}
 
           {/* Refresh telemetry */}
           <button
@@ -177,6 +189,29 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
+
+          {/* Authenticated profile switcher */}
+          <div className="flex items-center gap-1 rounded-xl border border-[#CBD5E1] bg-white p-1 shadow-2xs">
+            <button
+              onClick={onOpenAccount}
+              title="Change access profile"
+              className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-[#F1F5F9] transition-colors text-left"
+            >
+              <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black text-white ${
+                user.role === 'admin' ? 'bg-purple-700' : user.role === 'citizen' ? 'bg-blue-600' : 'bg-[#1B4332]'
+              }`}>
+                {user.avatarInitials}
+              </span>
+              <span className="hidden sm:block leading-tight">
+                <span className="block text-[11px] font-extrabold text-[#0F172A] max-w-28 truncate">{user.name}</span>
+                <span className="block text-[9px] font-bold text-[#64748B]">{user.badge}</span>
+              </span>
+              {user.role === 'admin' ? <ShieldCheck className="w-3.5 h-3.5 text-purple-700" /> : <UserRound className="w-3.5 h-3.5 text-[#64748B]" />}
+            </button>
+            <button onClick={onSignOut} title="Sign out" className="p-1.5 rounded-lg text-[#64748B] hover:bg-red-50 hover:text-red-600 transition-colors">
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
           {/* Active Alerts Bell */}
           <button
