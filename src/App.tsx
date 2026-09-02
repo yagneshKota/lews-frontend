@@ -427,7 +427,6 @@ export function App() {
       <AdminConfigModal
         isOpen={isAdminConfigOpen}
         onClose={() => setIsAdminConfigOpen(false)}
-        district={districtData}
         onShowToast={showToast}
       />
     </div>
