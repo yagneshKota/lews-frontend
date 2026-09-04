@@ -31,42 +31,48 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs animate-in fade-in">
-      <div className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 border-l border-[#CBD5E1]">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[#0b1b15] border border-emerald-500/30 w-full max-w-2xl max-h-[85vh] rounded-3xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-150 text-white overflow-hidden"
+      >
         {/* Header */}
-        <div className="p-5 border-b border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFC]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center text-red-600">
-              <Bell className="w-4 h-4" />
+        <div className="p-5 border-b border-emerald-900/60 flex items-center justify-between bg-gradient-to-r from-emerald-950 via-[#0a231b] to-emerald-950">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-600/30 border border-red-500/40 flex items-center justify-center text-red-400">
+              <Bell className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[#0F172A]">
-                District Alerts Dispatch
+              <h3 className="text-base font-extrabold text-white">
+                Landslide Alerts & CAP Dispatch Hub
               </h3>
-              <p className="text-[11px] text-[#64748B]">
-                {alerts.length} Total Warnings in Region
+              <p className="text-[11px] text-emerald-300/80 font-mono">
+                {alerts.length} Warnings Active in Northeast Monitoring Grid
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-[#64748B] hover:text-[#0F172A] hover:bg-[#E2E8F0] rounded-lg transition-colors"
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-emerald-900/60 rounded-xl transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Severity Filter Tabs */}
-        <div className="p-3 border-b border-[#F1F5F9] bg-[#FAFBFB] flex items-center gap-1">
-          {['ALL', 'CRITICAL', 'HIGH', 'WATCH'].map((sev) => (
+        <div className="p-3 border-b border-emerald-900/40 bg-[#071711] flex items-center gap-2">
+          {['ALL', 'CRITICAL', 'WARNING', 'WATCH'].map((sev) => (
             <button
               key={sev}
               onClick={() => setFilterSeverity(sev)}
-              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-colors ${
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
                 filterSeverity === sev
-                  ? 'bg-[#1B4332] text-white'
-                  : 'text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#0F172A]'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-emerald-950/60 text-slate-300 hover:bg-emerald-900/60 hover:text-white'
               }`}
             >
               {sev}
@@ -76,57 +82,60 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
 
         {/* Alerts List */}
         <div className="p-4 overflow-y-auto flex-1 space-y-3">
-          {filteredAlerts.length === 0 ? (
-            <div className="p-8 text-center text-[#64748B] text-[13px]">
-              No alerts found for selected filter.
-            </div>
-          ) : (
-            filteredAlerts.map((alt) => {
-              const riskInfo = getRiskColor(alt.severity);
+          {filteredAlerts.length > 0 ? (
+            filteredAlerts.map((alert) => {
+              const riskColor = getRiskColor(alert.severity);
 
               return (
                 <div
-                  key={alt.id}
-                  onClick={() => onSelectAlert(alt)}
-                  className="p-4 rounded-xl border border-[#E2E8F0] hover:border-[#1B4332]/40 bg-white hover:bg-[#F8FAFC] transition-all cursor-pointer shadow-2xs space-y-2.5"
+                  key={alert.id}
+                  onClick={() => onSelectAlert(alert)}
+                  className="p-4 rounded-2xl border border-emerald-800/40 bg-[#0e271e] hover:border-emerald-500/60 hover:bg-[#112f24] transition-all cursor-pointer space-y-2.5 shadow-xs group"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <span
-                      className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${riskInfo.badgeBg} ${riskInfo.badgeText} ${riskInfo.badgeBorder}`}
-                    >
-                      {alt.severity} &bull; {alt.riskScore}% RISK
-                    </span>
-                    <span className="text-[10px] text-[#64748B] flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {alt.timeAgo}
-                    </span>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${riskColor.badgeBg} ${riskColor.badgeText} ${riskColor.badgeBorder}`}
+                      >
+                        {alert.severity}
+                      </span>
+                      <span className="text-[11px] text-emerald-400 font-mono">
+                        #{alert.id}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{alert.timestamp}</span>
+                    </div>
                   </div>
 
-                  <div>
-                    <h4 className="text-[13px] font-bold text-[#0F172A] leading-snug">
-                      {alt.title}
+                    <div>
+                    <h4 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
+                      {alert.title}
                     </h4>
-                    <p className="text-[11px] text-[#64748B] flex items-center gap-1 mt-0.5">
-                      <MapPin className="w-3 h-3 text-[#1B4332]" />
-                      {alt.location}
+                    <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                      {alert.summary}
                     </p>
                   </div>
 
-                  <p className="text-[11px] text-[#475569] leading-relaxed line-clamp-2">
-                    {alt.summary}
-                  </p>
-
-                  <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between text-[11px]">
-                    <span className="text-[#1B4332] font-semibold flex items-center gap-1">
-                      Review Directives &rarr;
+                  <div className="flex items-center justify-between pt-2 border-t border-emerald-900/60 text-[11px]">
+                    <span className="flex items-center gap-1 text-emerald-400">
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>{alert.location}</span>
                     </span>
-                    <span className="text-[10px] text-[#64748B] font-mono">
-                      Status: {alt.status}
+
+                    <span className="text-slate-400 font-mono text-[10px]">
+                      Action: {alert.recommendedAction}
                     </span>
                   </div>
                 </div>
               );
             })
+          ) : (
+            <div className="p-8 text-center text-slate-400 text-xs">
+              No alerts matching the selected severity filter.
+            </div>
           )}
         </div>
       </div>

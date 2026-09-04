@@ -1,18 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopHeader } from './components/layout/TopHeader';
 import { SituationalSummary } from './components/dashboard/SituationalSummary';
 import { GisMapPanel } from './components/dashboard/GisMap/GisMapPanel';
 import { ZoneDetailPanel } from './components/dashboard/ZoneDetailPanel';
 import { RiskIntelligencePanel } from './components/dashboard/RiskIntelligencePanel';
-import { SlopeStabilityProfile } from './components/dashboard/SlopeStabilityProfile';
 import { RainfallThresholdChart } from './components/dashboard/RainfallThresholdChart';
 import { WhyRiskHighPanel } from './components/dashboard/WhyRiskHighPanel';
 import { EnvironmentalStrip } from './components/dashboard/EnvironmentalStrip';
 import { RecommendedActionsPanel } from './components/dashboard/RecommendedActionsPanel';
 import { TrendsAndActivityPanel } from './components/dashboard/TrendsAndActivityPanel';
 
-// Modals and Drawers
+// Modals and Drawers (All Centered Modals)
 import { TriggerAlertModal } from './components/modals/TriggerAlertModal';
 import { ZoneDetailModal } from './components/modals/ZoneDetailModal';
 import { AlertsDrawer } from './components/modals/AlertsDrawer';
@@ -26,30 +25,39 @@ import { CitizenPortalView } from './components/citizen/CitizenPortalView';
 import { AdminConfigModal } from './components/admin/AdminConfigModal';
 
 import { dashboardService } from './services/dashboardService';
-import type { District, RiskZone, RecommendedAction, UserProfile } from './types/dashboard';
-import { CheckCircle2, Mountain, Zap } from 'lucide-react';
+import { apiService, type MLPredictionResult } from './services/api';
+import { NORTHEAST_LOCATIONS, type NortheastLocation } from './data/northeastLocations';
+import type { District, RiskZone, RecommendedAction, UserProfile, FieldReport } from './types/dashboard';
+import { CheckCircle2, Mountain, Cpu } from 'lucide-react';
 
 export function App() {
-  // Frontend-only authentication: login is deliberately simulated for the prototype.
-  const [currentUser, setCurrentUser] = useState<UserProfile>(PRESET_USERS.govt);
+  // Theme state: Default Dark for Citizen, Light for Officer
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+
+  // Mobile drawer state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Authentication: Frictionless 3-Role Access
+  const [currentUser, setCurrentUser] = useState<UserProfile>(PRESET_USERS.citizen);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(true);
   const [isAdminConfigOpen, setIsAdminConfigOpen] = useState(false);
-  // Navigation State
-  const [activeNav, setActiveNav] = useState('dashboard');
 
-  // Selected District
-  const [selectedDistrictId, setSelectedDistrictId] = useState('tawang');
+  // Navigation State
+  const [activeNav, setActiveNav] = useState('citizen-safety');
+
+  // Selected Northeast Location (Covering Northeast States)
+  const [selectedLocation, setSelectedLocation] = useState<NortheastLocation>(NORTHEAST_LOCATIONS[0]);
   const [districtData, setDistrictData] = useState<District | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Live ML Prediction State
+  const [currentMLPrediction, setCurrentMLPrediction] = useState<MLPredictionResult | null>(null);
 
   // Selected Risk Zone (for Map & Detail Panel)
   const [selectedZone, setSelectedZone] = useState<RiskZone | null>(null);
 
-  // Hackathon Cloudburst Surge Simulation State
-  const [isSimulatedSurge, setIsSimulatedSurge] = useState(false);
-
-  // Modals and Drawers States
+  // Modals States (All open in center/middle)
   const [isAlertsDrawerOpen, setIsAlertsDrawerOpen] = useState(false);
   const [isZonesDrawerOpen, setIsZonesDrawerOpen] = useState(false);
   const [isRoadsDrawerOpen, setIsRoadsDrawerOpen] = useState(false);
@@ -68,52 +76,225 @@ export function App() {
     setTimeout(() => setToastMessage(null), 4200);
   };
 
-  // Fetch district data when selection changes
+  // Synchronize theme class with document element
   useEffect(() => {
-    let isMounted = true;
-    dashboardService.getDistrictData(selectedDistrictId).then((data) => {
-      if (isMounted) {
-        setDistrictData(data);
-        if (data.riskZones.length > 0) {
-          setSelectedZone(data.riskZones[0]);
-        } else {
-          setSelectedZone(null);
-        }
-        setLoading(false);
-      }
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedDistrictId]);
-
-  // Toggle Live Cloudburst Simulation for Hackathon Demonstrations
-  const handleToggleSimulateSurge = () => {
-    const nextState = !isSimulatedSurge;
-    setIsSimulatedSurge(nextState);
-    if (nextState) {
-      showToast(
-        '⚡ SIMULATION ENGAGED: Cloudburst (+80mm/h) & Micro-Seismic drift active! Threat level escalated to CRITICAL.'
-      );
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
     } else {
-      showToast('Simulation reset: Baseline GSI/IMD telemetry restored.');
+      document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
     }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
+
+  // Fetch reports from backend database and adapt to FieldReport[]
+  const loadDatabaseReports = useCallback(async (): Promise<FieldReport[]> => {
+    try {
+      const reports = await apiService.getReports(50);
+      return reports.map((r) => ({
+        id: r.id,
+        observerName: 'Citizen / Community Observer',
+        designation: 'Field Geotagged Reporter',
+        location: r.report || 'Slope Observation Site',
+        coordinates: [r.latitude, r.longitude],
+        hazardType: r.report || 'Ground Crack / Soil Slump',
+        severity: (r.risk_tier as any) || 'HIGH',
+        timeAgo: 'Recently logged',
+        notes: r.report_description,
+        hasPhotos: !!r.image_url,
+        photoCount: r.image_url ? 1 : 0,
+        verified: true,
+      }));
+    } catch {
+      return [];
+    }
+  }, []);
+
+  // Load telemetry & locations from backend APIs whenever selected Northeast location changes
+  const refreshLocationData = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      // 1. Try to fetch rich dashboard telemetry from backend
+      const backendDash = await apiService.fetchLocationDashboard(selectedLocation.id);
+      const dbReports = await loadDatabaseReports();
+
+      if (backendDash) {
+        const fullDistrict: District = {
+          id: backendDash.id,
+          name: backendDash.name,
+          state: backendDash.state,
+          center: backendDash.center,
+          zoom: backendDash.zoom,
+          currentRisk: backendDash.currentRisk,
+          riskLevel: backendDash.riskLevel,
+          riskTrend: backendDash.riskTrend,
+          predictionWindow: backendDash.predictionWindow,
+          confidence: backendDash.confidence,
+          criticalAlertsCount: backendDash.criticalAlertsCount,
+          highRiskZonesCount: backendDash.highRiskZonesCount,
+          blockedRoadsCount: backendDash.blockedRoadsCount,
+          environmental: backendDash.environmental,
+          explainability: backendDash.explainability,
+          recommendedActions: backendDash.recommendedActions,
+          riskZones: backendDash.riskZones,
+          alerts: backendDash.alerts,
+          roads: backendDash.roads,
+          sensors: backendDash.sensors,
+          facilities: backendDash.facilities,
+          fieldReports: dbReports.length > 0 ? dbReports : backendDash.fieldReports,
+          trend24h: backendDash.trend24h,
+        };
+
+        setDistrictData(fullDistrict);
+        setSelectedZone(fullDistrict.riskZones[0] || null);
+        setCurrentMLPrediction({
+          risk_score: fullDistrict.currentRisk / 100,
+          risk_level: fullDistrict.currentRisk >= 85 ? 3 : fullDistrict.currentRisk >= 60 ? 2 : 1,
+          risk_tier: (fullDistrict.riskLevel === 'CRITICAL' ? 'CRITICAL' : fullDistrict.riskLevel === 'HIGH' ? 'HIGH' : 'MEDIUM') as any,
+          alert_triggered: fullDistrict.currentRisk >= 85,
+          alert_message: `${fullDistrict.riskLevel} alert active`,
+          source: 'live_ml_backend',
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 2. Fallback dynamic synthesis with live ML evaluation
+      const mlResult = await apiService.predictForLocation(selectedLocation);
+      setCurrentMLPrediction(mlResult);
+
+      const base = await dashboardService.getDistrictData(selectedLocation.id);
+      const [lat, lng] = selectedLocation.coordinates;
+      const mappedTier =
+        mlResult.risk_tier === 'CRITICAL'
+          ? 'CRITICAL'
+          : mlResult.risk_tier === 'HIGH'
+          ? 'HIGH'
+          : mlResult.risk_tier === 'MEDIUM'
+          ? 'WATCH'
+          : 'SAFE';
+
+      const dynamicZones: RiskZone[] = [
+        {
+          id: `zone-${selectedLocation.id}-01`,
+          name: `${selectedLocation.name} Sector 1 (Ridge Flank)`,
+          sectorCode: `${selectedLocation.name.slice(0, 3).toUpperCase()}-SEC-01`,
+          riskScore: Math.round(mlResult.risk_score * 100),
+          riskLevel: mappedTier,
+          rainfall24h: selectedLocation.rainfall_24h,
+          soilMoisture: Math.round(selectedLocation.soil_moisture * 100),
+          slopeAngle: selectedLocation.slope_degrees,
+          historicalEvents: 8,
+          predictionWindow: mlResult.risk_tier === 'CRITICAL' ? '1–3 hours' : '4–8 hours',
+          confidence: 93,
+          coordinates: [
+            [lat + 0.005, lng - 0.006],
+            [lat + 0.012, lng + 0.004],
+            [lat + 0.003, lng + 0.011],
+            [lat - 0.007, lng + 0.001],
+            [lat - 0.002, lng - 0.008],
+          ],
+          center: [lat + 0.003, lng + 0.001],
+          elevation: selectedLocation.elevation_m,
+          description: selectedLocation.description,
+          sensorsCount: selectedLocation.sensorsCount,
+          populationAtRisk: selectedLocation.populationAtRisk,
+          nearestFacility: selectedLocation.evacuationCenter,
+        },
+        {
+          id: `zone-${selectedLocation.id}-02`,
+          name: `${selectedLocation.name} Highway Transit Pass`,
+          sectorCode: `${selectedLocation.name.slice(0, 3).toUpperCase()}-HWY-02`,
+          riskScore: Math.max(20, Math.round(mlResult.risk_score * 100) - 12),
+          riskLevel: mlResult.risk_tier === 'CRITICAL' ? 'HIGH' : 'WATCH',
+          rainfall24h: Math.round(selectedLocation.rainfall_24h * 0.9),
+          soilMoisture: Math.round(selectedLocation.soil_moisture * 92),
+          slopeAngle: Math.max(15, selectedLocation.slope_degrees - 6),
+          historicalEvents: 5,
+          predictionWindow: '6–12 hours',
+          confidence: 89,
+          coordinates: [
+            [lat - 0.015, lng - 0.012],
+            [lat - 0.008, lng - 0.003],
+            [lat - 0.014, lng + 0.006],
+            [lat - 0.022, lng - 0.002],
+          ],
+          center: [lat - 0.014, lng - 0.003],
+          elevation: Math.round(selectedLocation.elevation_m * 0.95),
+          description: 'Arterial transit cut slope with rockfall protection netting and piezometers.',
+          sensorsCount: 4,
+          populationAtRisk: Math.round(selectedLocation.populationAtRisk * 0.6),
+          nearestFacility: selectedLocation.evacuationCenter,
+        },
+      ];
+
+      const updatedDistrict: District = {
+        ...base,
+        id: selectedLocation.id,
+        name: `${selectedLocation.name} (${selectedLocation.district})`,
+        state: selectedLocation.state,
+        center: [lat, lng],
+        currentRisk: Math.round(mlResult.risk_score * 100),
+        riskLevel: mappedTier,
+        environmental: {
+          rainfall24h: selectedLocation.rainfall_24h,
+          soilMoisture: Math.round(selectedLocation.soil_moisture * 100),
+          temperature: selectedLocation.elevation_m > 2000 ? 14 : 22,
+          groundMovement: mlResult.risk_tier === 'CRITICAL' ? 1.8 : 0.4,
+          humidity: 88,
+          windSpeed: 16,
+        },
+        riskZones: dynamicZones,
+        fieldReports: dbReports.length > 0 ? dbReports : base.fieldReports,
+      };
+
+      setDistrictData(updatedDistrict);
+      setSelectedZone(dynamicZones[0]);
+    } catch {
+      // Graceful fallback
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedLocation, loadDatabaseReports]);
+
+  useEffect(() => {
+    refreshLocationData();
+  }, [refreshLocationData]);
+
+  // Connect WebSocket for live alerts
+  useEffect(() => {
+    const disconnect = apiService.connectAlertsWebSocket((alert) => {
+      showToast(`🚨 Real-time alert: ${alert.message || 'New landslide warning received'}`);
+    });
+    return () => disconnect();
+  }, []);
+
+  // Handle Location Switch
+  const handleSelectLocation = (loc: NortheastLocation) => {
+    setSelectedLocation(loc);
+    showToast(`Switched monitoring focus to ${loc.name}, ${loc.state}`);
   };
 
   // Handle Sidebar Navigation
   const handleNavigate = (navId: string) => {
     setActiveNav(navId);
+    setIsMobileMenuOpen(false);
     if (navId === 'settings') {
       if (currentUser.role === 'admin') {
         setIsAdminConfigOpen(true);
       } else {
-        showToast('System calibration is restricted to verified GSI administrators.');
+        showToast('System calibration is restricted to GSI / LEWS administrators.');
       }
       return;
     }
     if (navId === 'alerts') {
       setIsAlertsDrawerOpen(true);
-    } else if (navId === 'risk-zones' || navId === 'live-risk-map') {
+    } else if (navId === 'live-risk-map') {
       setIsZonesDrawerOpen(true);
     } else if (navId === 'road-connectivity') {
       setIsRoadsDrawerOpen(true);
@@ -121,10 +302,6 @@ export function App() {
       setIsEmergencyResponseOpen(true);
     } else if (navId === 'field-reports') {
       setIsFieldReportsOpen(true);
-    } else if (navId === 'slope-stability') {
-      showToast('Switched focus to Geotechnical Slope Stability (FoS) & Slip Surface analysis.');
-    } else if (navId === 'rainfall-threshold') {
-      showToast('Switched focus to GSI Intensity-Duration (I-D) Threshold Model.');
     } else if (navId !== 'dashboard') {
       showToast(`Navigated to ${navId.replace('-', ' ').toUpperCase()} view`);
     }
@@ -150,26 +327,39 @@ export function App() {
     showToast(`Action status updated to "${status}"`);
   };
 
+  const isLight = theme === 'light';
+
   if (loading || !districtData) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F8F9FA]">
-        <div className="text-center space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-[#1B4332] text-white flex items-center justify-center mx-auto animate-pulse shadow-lg shadow-[#1B4332]/20">
-            <Mountain className="w-7 h-7 text-[#D8F3DC]" />
+      <div
+        className={`flex items-center justify-center min-h-screen ${
+          isLight ? 'bg-slate-50 text-slate-900' : 'bg-[#06140e] text-white'
+        }`}
+      >
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white flex items-center justify-center mx-auto animate-pulse shadow-xl border border-emerald-400/40">
+            <Mountain className="w-8 h-8 text-emerald-100" />
           </div>
-          <p className="text-sm font-extrabold text-[#0F172A] tracking-tight">
-            BHU-GUARD AI &bull; LEWS Operations Hub
-          </p>
-          <p className="text-xs text-[#64748B] font-mono">
-            Connecting to GSI Satellite & Ground Telemetry Nodes...
-          </p>
+          <div>
+            <p className="text-base font-extrabold tracking-tight">
+              BHU-GUARD AI &bull; LEWS Operations Hub
+            </p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400/80 font-mono mt-1">
+              Loading backend telemetry for {selectedLocation.name}, {selectedLocation.state}...
+            </p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-[#F8F9FA] text-[#1E293B]">
+    <div
+      className={`flex min-h-screen relative transition-colors duration-200 ${
+        isLight ? 'bg-[#f8fafc] text-slate-900' : 'bg-[#06140e] text-[#f1f5f9]'
+      }`}
+    >
+      {/* Login Modal: 3-Role Selection without phone/OTP */}
       <LoginModal
         isOpen={isLoginOpen}
         currentUser={currentUser}
@@ -179,192 +369,214 @@ export function App() {
           setIsAuthenticated(true);
           setIsLoginOpen(false);
           setActiveNav(user.role === 'citizen' ? 'citizen-safety' : 'dashboard');
-          showToast(`Welcome, ${user.name.split(',')[0]}. ${user.badge} access is active.`);
+          // Dark mode is best suited for Citizen, Light mode for Officer / Admin
+          if (user.role === 'citizen') {
+            setTheme('dark');
+          } else {
+            setTheme('light');
+          }
+          showToast(`Active profile: ${user.name} (${user.badge}).`);
         }}
       />
+
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 bg-[#1B4332] text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-semibold animate-in slide-in-from-bottom-4 border border-[#2D6A4F] max-w-md">
-          <CheckCircle2 className="w-4 h-4 text-[#86EFAC] shrink-0" />
+        <div
+          className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-semibold animate-in slide-in-from-bottom-4 border max-w-md ${
+            isLight
+              ? 'bg-white border-slate-300 text-slate-900 shadow-slate-300'
+              : 'bg-[#0c261b] border-emerald-500/50 text-white'
+          }`}
+        >
+          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* 1. Left Navigation Sidebar */}
+      {/* 1. Left Navigation Sidebar (Officer & Admin) */}
       {currentUser.role !== 'citizen' && (
         <Sidebar
           activeNav={activeNav}
           onNavigate={handleNavigate}
-          criticalAlertsCount={districtData.criticalAlertsCount + (isSimulatedSurge ? 2 : 0)}
+          criticalAlertsCount={districtData.criticalAlertsCount}
+          isOpenMobile={isMobileMenuOpen}
+          onCloseMobile={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Main App Canvas */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* 2. Top Header with SIH Hackathon PS-01 & Simulation Controls */}
+        {/* 2. Top Header with Full Northeast Location Search & Theme Toggle */}
         <TopHeader
-          selectedDistrictId={selectedDistrictId}
-          onSelectDistrict={setSelectedDistrictId}
-          activeAlertsCount={districtData.criticalAlertsCount + (isSimulatedSurge ? 2 : 0)}
+          selectedLocation={selectedLocation}
+          onSelectLocation={handleSelectLocation}
+          activeAlertsCount={districtData.criticalAlertsCount}
           onOpenAlerts={() => setIsAlertsDrawerOpen(true)}
-          onOpenSearch={() => { }}
-          isSimulatedSurge={isSimulatedSurge}
-          onToggleSimulateSurge={handleToggleSimulateSurge}
-          onTriggerInstantAlert={() => {
-            if (selectedZone) {
-              handleOpenTriggerAlert(selectedZone);
-            } else if (districtData.riskZones.length > 0) {
-              handleOpenTriggerAlert(districtData.riskZones[0]);
-            }
-          }}
           user={currentUser}
           onOpenAccount={() => setIsLoginOpen(true)}
           onSignOut={() => {
             setIsAuthenticated(false);
             setIsLoginOpen(true);
           }}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onShowToast={showToast}
+          onToggleMobileMenu={() => setIsMobileMenuOpen((prev) => !prev)}
         />
 
-        {/* 3. Main Dashboard Body */}
-        <main className="flex-1 p-5 md:p-6 space-y-6 max-w-[1440px] w-full mx-auto">
+        {/* 3. Main Body */}
+        <main className="flex-1 p-4 md:p-6 space-y-6 max-w-[1500px] w-full mx-auto">
           {currentUser.role === 'citizen' ? (
             <CitizenPortalView
-              district={districtData}
-              isSimulatedSurge={isSimulatedSurge}
+              location={selectedLocation}
               onOpenGisMap={() => setIsZonesDrawerOpen(true)}
               onOpenRoads={() => setIsRoadsDrawerOpen(true)}
               onShowToast={showToast}
+              onReportSubmitted={refreshLocationData}
             />
-          ) : <>
-          {/* Header Banner & Live Protocol Indicator */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-gradient-to-r from-white via-[#F8FAFC] to-[#F1F5F9] p-4 rounded-2xl border border-[#CBD5E1] shadow-2xs">
-            <div>
-              <div className="flex items-center gap-2 text-xs text-[#64748B] mb-0.5">
-                <span className="font-bold text-[#1B4332]">{districtData.name}</span>
-                <span>/</span>
-                <span>Landslide Early Warning & Hazard Risk Assessment</span>
-              </div>
-              <h1 className="text-xl md:text-2xl font-black tracking-tight text-[#0F172A]">
-                {districtData.name} Landslide Threat & Geotechnical Operations
-              </h1>
-              <p className="text-xs text-[#64748B] mt-0.5">
-                Multi-sensor InSAR, IoT Inclinometers, and GSI Empirical I-D Threshold Monitoring
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {isSimulatedSurge && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 text-white text-[11px] font-extrabold animate-pulse shadow-xs">
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>Cloudburst Event Active</span>
+          ) : (
+            <>
+              {/* Header Banner & Live Protocol Indicator */}
+              <div
+                className={`flex flex-col md:flex-row md:items-center justify-between gap-3 p-5 rounded-3xl border shadow-lg ${
+                  isLight
+                    ? 'bg-white border-slate-200'
+                    : 'bg-gradient-to-r from-[#0b2118] via-[#0d281e] to-[#071610] border-emerald-800/60'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400/90 mb-0.5">
+                    <span className="font-extrabold">{selectedLocation.name}</span>
+                    <span>/</span>
+                    <span>
+                      {selectedLocation.district}, {selectedLocation.state}
+                    </span>
+                    <span>&bull;</span>
+                    <span className="font-mono">{selectedLocation.elevation_m}m Elevation</span>
+                  </div>
+                  <h1 className="text-xl md:text-2xl font-black tracking-tight">
+                    {selectedLocation.name} Landslide Hazard Assessment & Command Grid
+                  </h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">
+                    Multi-sensor InSAR, IoT Inclinometers, and Phase 3 LightGBM Landslide Inference
+                  </p>
                 </div>
-              )}
-              <span className="text-[11px] font-semibold text-[#334155] bg-white px-3 py-1.5 rounded-xl border border-[#CBD5E1] shadow-2xs">
-                Protocol: <strong className="text-[#1B4332]">Monsoon Vigilance 2026 (GSI-LEWS)</strong>
-              </span>
-            </div>
-          </div>
 
-          {/* SECTION 1 — Situational Summary (4 Geotechnical KPIs) */}
-          <section>
-            <SituationalSummary
-              district={districtData}
-              onOpenAlerts={() => setIsAlertsDrawerOpen(true)}
-              onOpenZones={() => setIsZonesDrawerOpen(true)}
-              onOpenRoads={() => setIsRoadsDrawerOpen(true)}
-              onOpenSlopeStability={() => setActiveNav('slope-stability')}
-              onOpenRainfallThreshold={() => setActiveNav('rainfall-threshold')}
-              isSimulatedSurge={isSimulatedSurge}
-            />
-          </section>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 text-xs font-mono">
+                    <Cpu className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>
+                      ML Risk:{' '}
+                      <strong>
+                        {currentMLPrediction
+                          ? `${Math.round(currentMLPrediction.risk_score * 100)}% (${currentMLPrediction.risk_tier})`
+                          : 'Live Evaluated'}
+                      </strong>
+                    </span>
+                  </div>
 
-          {/* SECTION 2 — Core GIS 3D Topography Map + Right Geotechnical Analysis Column */}
-          <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* Left 7 Columns (~58%): GIS Map & Selected Zone Detail Panel */}
-            <div className="lg:col-span-7 space-y-4">
-              <GisMapPanel
-                district={districtData}
-                selectedZone={selectedZone}
-                onSelectZone={(zone) => setSelectedZone(zone)}
-                onTriggerAlertModal={handleOpenTriggerAlert}
-              />
+                  <span
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-xl border ${
+                      isLight
+                        ? 'bg-slate-100 text-slate-700 border-slate-300'
+                        : 'bg-[#06140e] text-slate-200 border-emerald-800/80'
+                    }`}
+                  >
+                    Protocol: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">GSI-LEWS Command</strong>
+                  </span>
+                </div>
+              </div>
 
-              {/* Map Zone Detail Panel */}
-              <ZoneDetailPanel
-                zone={selectedZone}
-                onClose={() => setSelectedZone(null)}
-                onViewZoneDetails={(zone) => {
-                  setSelectedZone(zone);
-                  setIsZoneDetailModalOpen(true);
-                }}
-                onViewReports={() => setIsFieldReportsOpen(true)}
-                onTriggerAlert={handleOpenTriggerAlert}
-              />
-            </div>
+              {/* SECTION 1 — Situational Summary (4 Geotechnical KPIs) */}
+              <section>
+                <SituationalSummary
+                  district={districtData}
+                  onOpenAlerts={() => setIsAlertsDrawerOpen(true)}
+                  onOpenZones={() => setIsZonesDrawerOpen(true)}
+                  onOpenRoads={() => setIsRoadsDrawerOpen(true)}
+                  onOpenSlopeStability={() => handleNavigate('live-risk-map')}
+                  onOpenRainfallThreshold={() => handleNavigate('live-risk-map')}
+                  isSimulatedSurge={false}
+                />
+              </section>
 
-            {/* Right 5 Columns (~42%): Geotechnical Factor of Safety, XAI, and Risk Intelligence */}
-            <div className="lg:col-span-5 space-y-4">
-              {/* Geotechnical Slope Cross-Section (DEM Profile & Factor of Safety) */}
-              <SlopeStabilityProfile
-                zone={selectedZone || districtData.riskZones[0]}
-                isSimulatedSurge={isSimulatedSurge}
-              />
+              {/* SECTION 2 — Core GIS 3D Topography Map + Right Geotechnical Analysis Column (Geotechnical slope cross-section removed) */}
+              <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                {/* Left 7 Columns: GIS Map & Selected Zone Detail Panel */}
+                <div className="lg:col-span-7 space-y-4">
+                  <GisMapPanel
+                    district={districtData}
+                    selectedZone={selectedZone}
+                    onSelectZone={(zone) => setSelectedZone(zone)}
+                    onTriggerAlertModal={handleOpenTriggerAlert}
+                  />
 
-              {/* Current Risk Intelligence Gauge */}
-              <RiskIntelligencePanel district={districtData} />
+                  {/* Map Zone Detail Panel */}
+                  <ZoneDetailPanel
+                    zone={selectedZone}
+                    onClose={() => setSelectedZone(null)}
+                    onViewZoneDetails={(zone) => {
+                      setSelectedZone(zone);
+                      setIsZoneDetailModalOpen(true);
+                    }}
+                    onViewReports={() => setIsFieldReportsOpen(true)}
+                    onTriggerAlert={handleOpenTriggerAlert}
+                  />
+                </div>
 
-              {/* Why is the Risk High? (XAI SHAP Values) */}
-              <WhyRiskHighPanel factors={districtData.explainability} />
-            </div>
-          </section>
+                {/* Right 5 Columns: Risk Intelligence & Why Risk High Panels */}
+                <div className="lg:col-span-5 space-y-4">
+                  <RiskIntelligencePanel district={districtData} />
+                  <WhyRiskHighPanel factors={districtData.explainability} />
+                </div>
+              </section>
 
-          {/* SECTION 3 — Real-Time IoT Environmental Telemetry Strip */}
-          <section>
-            <EnvironmentalStrip
-              data={districtData.environmental}
-              isSimulatedSurge={isSimulatedSurge}
-            />
-          </section>
+              {/* SECTION 3 — Real-Time IoT Environmental Telemetry Strip */}
+              <section>
+                <EnvironmentalStrip
+                  data={districtData.environmental}
+                  isSimulatedSurge={false}
+                />
+              </section>
 
-          {/* SECTION 4 — Empirical I-D Rainfall Threshold Curve & 24h Trends Grid */}
-          <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* Left 5 Columns: GSI Intensity-Duration (I-D) Threshold Model */}
-            <div className="lg:col-span-5">
-              <RainfallThresholdChart
-                currentRainfall24h={districtData.environmental.rainfall24h}
-                isSimulatedSurge={isSimulatedSurge}
-              />
-            </div>
+              {/* SECTION 4 — Empirical I-D Rainfall Threshold Curve & Actions Grid */}
+              <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                <div className="lg:col-span-5">
+                  <RainfallThresholdChart
+                    currentRainfall24h={districtData.environmental.rainfall24h}
+                    isSimulatedSurge={false}
+                  />
+                </div>
 
-            {/* Right 7 Columns: Recommended Actions & Task Force Dispatch */}
-            <div className="lg:col-span-7">
-              <RecommendedActionsPanel
-                actions={districtData.recommendedActions}
-                onSelectAction={(action) => setSelectedActionForModal(action)}
-                onOpenEmergencyResponse={() => setIsEmergencyResponseOpen(true)}
-              />
-            </div>
-          </section>
+                <div className="lg:col-span-7">
+                  <RecommendedActionsPanel
+                    actions={districtData.recommendedActions}
+                    onSelectAction={(action) => setSelectedActionForModal(action)}
+                    onOpenEmergencyResponse={() => setIsEmergencyResponseOpen(true)}
+                  />
+                </div>
+              </section>
 
-          {/* SECTION 5 — 24h Telemetry Timeline & Recent Field Observer Activity */}
-          <section>
-            <TrendsAndActivityPanel
-              trendData={districtData.trend24h}
-              alerts={districtData.alerts}
-              fieldReports={districtData.fieldReports}
-              onOpenAlerts={() => setIsAlertsDrawerOpen(true)}
-              onOpenFieldReports={() => setIsFieldReportsOpen(true)}
-              onSelectAlert={(_alt) => {
-                setIsAlertsDrawerOpen(true);
-              }}
-              onSelectReport={() => setIsFieldReportsOpen(true)}
-            />
-          </section>
-          </>}
+              {/* SECTION 5 — 24h Telemetry Timeline & Recent Field Observer Activity */}
+              <section>
+                <TrendsAndActivityPanel
+                  trendData={districtData.trend24h}
+                  alerts={districtData.alerts}
+                  fieldReports={districtData.fieldReports}
+                  onOpenAlerts={() => setIsAlertsDrawerOpen(true)}
+                  onOpenFieldReports={() => setIsFieldReportsOpen(true)}
+                  onSelectAlert={(_alt) => {
+                    setIsAlertsDrawerOpen(true);
+                  }}
+                  onSelectReport={() => setIsFieldReportsOpen(true)}
+                />
+              </section>
+            </>
+          )}
         </main>
       </div>
 
-      {/* Modals & Drawers */}
+      {/* Centered Modals & Dialogs */}
       <TriggerAlertModal
         zone={targetZoneForAlert}
         isOpen={isTriggerAlertOpen}
@@ -434,3 +646,4 @@ export function App() {
 }
 
 export default App;
+

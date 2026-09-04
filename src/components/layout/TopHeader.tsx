@@ -1,214 +1,439 @@
-import { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  ChevronDown,
+  Search,
+  MapPin,
   RefreshCw,
   Bell,
   Mountain,
-  Zap,
-  Radio,
-  Satellite,
   LogOut,
-  ShieldCheck,
-  UserRound,
+  X,
+  SlidersHorizontal,
+  ChevronDown,
+  Sun,
+  Moon,
+  Navigation,
+  Loader2,
+  Menu,
 } from 'lucide-react';
-import { AVAILABLE_DISTRICTS } from '../../services/dashboardService';
-import { getRiskColor } from '../../utils/riskUtils';
+import { apiService } from '../../services/api';
+import type { NortheastLocation } from '../../data/northeastLocations';
 import type { UserProfile } from '../../types/dashboard';
 
 interface TopHeaderProps {
-  selectedDistrictId: string;
-  onSelectDistrict: (id: string) => void;
+  selectedLocation: NortheastLocation;
+  onSelectLocation: (loc: NortheastLocation) => void;
   activeAlertsCount: number;
   onOpenAlerts: () => void;
-  onOpenSearch: () => void;
-  isSimulatedSurge: boolean;
-  onToggleSimulateSurge: () => void;
-  onTriggerInstantAlert: () => void;
   user: UserProfile;
   onOpenAccount: () => void;
   onSignOut: () => void;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
+  onShowToast: (msg: string) => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
-  selectedDistrictId,
-  onSelectDistrict,
+  selectedLocation,
+  onSelectLocation,
   activeAlertsCount,
   onOpenAlerts,
-  isSimulatedSurge,
-  onToggleSimulateSurge,
-  onTriggerInstantAlert,
   user,
   onOpenAccount,
   onSignOut,
+  theme,
+  onToggleTheme,
+  onShowToast,
+  onToggleMobileMenu,
 }) => {
-  const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedStateFilter, setSelectedStateFilter] = useState<string>('ALL');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [searchResults, setSearchResults] = useState<NortheastLocation[]>([]);
+  const [isSearchingBackend, setIsSearchingBackend] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  const currentDistrict =
-    AVAILABLE_DISTRICTS.find((d) => d.id === selectedDistrictId) ||
-    AVAILABLE_DISTRICTS[0];
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Fetch search results dynamically from backend
+  useEffect(() => {
+    let active = true;
+    setIsSearchingBackend(true);
+    const timer = setTimeout(() => {
+      apiService
+        .fetchLocations(searchQuery, selectedStateFilter)
+        .then((locs) => {
+          if (active) {
+            setSearchResults(locs);
+            setIsSearchingBackend(false);
+          }
+        })
+        .catch(() => {
+          if (active) setIsSearchingBackend(false);
+        });
+    }, 180);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, selectedStateFilter]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 600);
+    setTimeout(() => setIsRefreshing(false), 500);
+    onShowToast('Refreshed live sensor & satellite telemetry');
   };
 
+  // Live browser geolocation feature
+  const handleUseLiveLocation = () => {
+    if (!navigator.geolocation) {
+      onShowToast('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setIsLocating(true);
+    onShowToast('Acquiring live browser GPS coordinates...');
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const nearest = await apiService.fetchNearestLocation(latitude, longitude);
+          onSelectLocation(nearest);
+          onShowToast(
+            `📍 GPS match: Located nearest town: ${nearest.name}, ${nearest.state} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
+          );
+        } catch {
+          onShowToast('Could not find nearest monitored Northeast town.');
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        onShowToast(`GPS Location permission denied or unavailable (${err.message}).`);
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
+  const states = [
+    'ALL',
+    'Arunachal Pradesh',
+    'Assam',
+    'Meghalaya',
+    'Sikkim',
+    'Nagaland',
+    'Manipur',
+    'Mizoram',
+    'Tripura',
+  ];
+
+  const getTierBadge = (tier: string) => {
+    switch (tier) {
+      case 'CRITICAL':
+        return 'bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/40';
+      case 'HIGH':
+        return 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40';
+      case 'MEDIUM':
+        return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/40';
+      default:
+        return 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40';
+    }
+  };
+
+  const isLight = theme === 'light';
+
   return (
-    <header className="bg-white/95 backdrop-blur-md border-b border-[#E2E8F0] px-5 py-3 sticky top-0 z-20 shadow-xs transition-all">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        {/* Left: District Switcher + SIH PS-01 Badge */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* SIH Hackathon Badge */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#1B4332] to-[#2D6A4F] text-white shadow-xs">
-            <span className="text-[10px] font-extrabold tracking-wider bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded font-mono">
-              SIH 2026
-            </span>
-            <span className="text-[11px] font-bold tracking-tight">
-              PS-01: AI Landslide Early Warning (LEWS)
-            </span>
-          </div>
-
-          {/* District Dropdown Selector */}
-          <div className="relative">
+    <header
+      className={`border-b px-4 md:px-6 py-2.5 sticky top-0 z-30 shadow-md transition-colors ${
+        isLight
+          ? 'bg-white/95 backdrop-blur-md border-slate-200 text-slate-900'
+          : 'bg-[#081711]/95 backdrop-blur-md border-emerald-900/60 text-white'
+      }`}
+    >
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* Left: Branding & Mobile Menu Button */}
+        <div className="flex items-center gap-2 md:gap-3">
+          {onToggleMobileMenu && (
             <button
-              onClick={() => setDistrictDropdownOpen(!districtDropdownOpen)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] hover:bg-[#F1F5F9] text-left transition-colors shadow-2xs group"
+              onClick={onToggleMobileMenu}
+              className={`p-2 rounded-xl border md:hidden transition-colors ${
+                isLight
+                  ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+                  : 'bg-[#0d261e] border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/50 hover:text-white'
+              }`}
+              title="Open Navigation Menu"
+              aria-label="Open Navigation Menu"
             >
-              <div className="w-7 h-7 rounded-lg bg-[#1B4332]/10 text-[#1B4332] flex items-center justify-center group-hover:bg-[#1B4332] group-hover:text-white transition-colors">
-                <Mountain className="w-3.5 h-3.5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[13px] font-extrabold text-[#0F172A]">
-                    {currentDistrict.name}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5 text-[#64748B]" />
-                </div>
-                <p className="text-[10px] font-semibold text-[#64748B] -mt-0.5">
-                  {currentDistrict.state}
-                </p>
-              </div>
+              <Menu className="w-5 h-5" />
             </button>
+          )}
 
-            {/* Dropdown Menu */}
-            {districtDropdownOpen && (
-              <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-2xl border border-[#CBD5E1] shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#64748B] border-b border-[#F1F5F9] flex items-center justify-between">
-                  <span>Select Himalayan / Ghats District</span>
-                  <span className="text-[9px] text-[#1B4332]">6 Monitored</span>
-                </div>
-                <div className="max-h-80 overflow-y-auto divide-y divide-[#F1F5F9]">
-                  {AVAILABLE_DISTRICTS.map((dist) => {
-                    const riskInfo = getRiskColor(dist.riskLevel);
-                    const isSelected = dist.id === selectedDistrictId;
-
-                    return (
-                      <button
-                        key={dist.id}
-                        onClick={() => {
-                          onSelectDistrict(dist.id);
-                          setDistrictDropdownOpen(false);
-                        }}
-                        className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between hover:bg-[#F8FAFC] transition-colors ${
-                          isSelected ? 'bg-[#ECFDF5] font-semibold' : ''
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-[13px] font-bold text-[#0F172A]">
-                              {dist.name}
-                            </p>
-                            {isSelected && (
-                              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                            )}
-                          </div>
-                          <p className="text-[11px] text-[#64748B]">{dist.state}</p>
-                        </div>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${riskInfo.badgeBg} ${riskInfo.badgeText} ${riskInfo.badgeBorder}`}
-                        >
-                          {dist.risk}% {dist.riskLevel}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-900 flex items-center justify-center text-white shadow-md border border-emerald-400/30 shrink-0">
+            <Mountain className="w-4 h-4 md:w-5 md:h-5 text-emerald-100" />
           </div>
 
-          {/* GSI & ISRO Bhuvan Status Badge */}
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-medium shadow-2xs">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <Satellite className="w-3.5 h-3.5 text-emerald-700" />
-            <span>GSI & ISRO Bhuvan InSAR Online</span>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm md:text-lg font-black tracking-tight flex items-center gap-1.5">
+                <span className={isLight ? 'text-slate-900' : 'text-white'}>BHU-GUARD AI</span>
+                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-600 text-white uppercase font-mono">
+                  LEWS
+                </span>
+              </h1>
+              <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-700 font-mono">
+                Northeast Grid
+              </span>
+            </div>
+            <p className="hidden sm:block text-[11px] text-emerald-600 dark:text-emerald-300/90 font-medium leading-tight">
+              Landslide Early Warning &bull; Live Telemetry & Field Response
+            </p>
           </div>
         </div>
 
-        {/* Center/Right: Hackathon Demo Simulator + Actions */}
-        <div className="flex items-center gap-2.5 flex-wrap justify-end">
-          {/* Operational controls are only available to verified response teams. */}
-          {user.role !== 'citizen' && <>
+        {/* Center: Search Bar for All Northeast Towns & Cities */}
+        <div ref={searchContainerRef} className="relative flex-1 max-w-xl mx-auto w-full">
+          <div className="relative flex items-center">
+            <div className="absolute left-3 text-emerald-600 dark:text-emerald-400 pointer-events-none">
+              <Search className="w-4 h-4" />
+            </div>
+
+            <input
+              type="text"
+              value={searchQuery}
+              onFocus={() => setIsSearchOpen(true)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearchOpen(true);
+              }}
+              placeholder={`Search town or city in Northeast (Current: ${selectedLocation.name}, ${selectedLocation.state})...`}
+              className={`w-full pl-9 pr-28 py-2 rounded-2xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-inner ${
+                isLight
+                  ? 'bg-slate-100/90 border border-slate-300 text-slate-900 placeholder:text-slate-500 hover:border-emerald-500'
+                  : 'bg-[#0d261e]/90 border border-emerald-700/50 text-white placeholder:text-slate-400 hover:border-emerald-500'
+              }`}
+            />
+
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-18 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {/* Quick GPS Live Button */}
+            <button
+              onClick={handleUseLiveLocation}
+              disabled={isLocating}
+              title="Use Live Browser GPS Location"
+              className="absolute right-1.5 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold shadow-xs transition-all active:scale-95 disabled:opacity-50"
+            >
+              {isLocating ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Navigation className="w-3 h-3 text-emerald-100" />
+              )}
+              <span className="hidden sm:inline">GPS</span>
+            </button>
+          </div>
+
+          {/* Autocomplete Dropdown */}
+          {isSearchOpen && (
+            <div
+              className={`absolute top-full left-0 right-0 mt-2 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 border ${
+                isLight
+                  ? 'bg-white border-slate-200 text-slate-800'
+                  : 'bg-[#0c221a] border-emerald-700/60 text-white'
+              }`}
+            >
+              {/* State Filter Chips */}
+              <div
+                className={`p-2 border-b overflow-x-auto flex items-center gap-1.5 scrollbar-none ${
+                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#071711] border-emerald-900/80'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-1 mr-0.5 shrink-0" />
+                {states.map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => setSelectedStateFilter(st)}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors ${
+                      selectedStateFilter === st
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : isLight
+                        ? 'bg-slate-200/70 text-slate-700 hover:bg-slate-300'
+                        : 'bg-emerald-950/60 text-slate-300 hover:bg-emerald-900/80 hover:text-white'
+                    }`}
+                  >
+                    {st === 'ALL' ? 'All 8 States' : st}
+                  </button>
+                ))}
+              </div>
+
+              {/* Locations List from Backend */}
+              <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-emerald-950">
+                {isSearchingBackend ? (
+                  <div className="p-4 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                    <span>Loading towns from backend...</span>
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  searchResults.map((loc) => {
+                    const isCurrent = loc.id === selectedLocation.id;
+                    return (
+                      <button
+                        key={loc.id}
+                        type="button"
+                        onClick={() => {
+                          onSelectLocation(loc);
+                          setIsSearchOpen(false);
+                          setSearchQuery('');
+                        }}
+                        className={`w-full px-3.5 py-2.5 text-left flex items-center justify-between transition-colors ${
+                          isCurrent
+                            ? isLight
+                              ? 'bg-emerald-50 font-bold'
+                              : 'bg-emerald-900/50 font-bold'
+                            : isLight
+                            ? 'hover:bg-slate-100'
+                            : 'hover:bg-emerald-900/40'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center text-emerald-700 dark:text-emerald-400 shrink-0">
+                            <MapPin className="w-3.5 h-3.5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`text-xs font-bold ${
+                                  isLight ? 'text-slate-900' : 'text-white'
+                                }`}
+                              >
+                                {loc.name}
+                              </span>
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400/90 font-mono">
+                                {loc.district}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                              {loc.state} &bull; {loc.elevation_m}m alt &bull; {loc.rainfall_24h}mm rain
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded-full border ${getTierBadge(
+                              loc.riskTier
+                            )}`}
+                          >
+                            {loc.riskScore}% {loc.riskTier}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="p-4 text-center text-xs text-slate-500">
+                    No Northeast town matching "{searchQuery}"
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Controls: Theme Toggle, Refresh, Role Switcher, Alerts Bell */}
+        <div className="flex items-center gap-2 justify-end">
+          {/* Light / Dark Mode Toggle */}
           <button
-            onClick={onToggleSimulateSurge}
-            title="Simulate sudden Monsoon Cloudburst (+80mm/h) & Earthquake to demonstrate real-time risk escalation"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
-              isSimulatedSurge
-                ? 'bg-red-600 text-white animate-pulse border border-red-700 ring-2 ring-red-400/40'
-                : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:brightness-110 border border-amber-600'
+            onClick={onToggleTheme}
+            title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            className={`p-2 rounded-xl border transition-all ${
+              isLight
+                ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+                : 'bg-[#0d261e] border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/50 hover:text-white'
             }`}
           >
-            <Zap className="w-3.5 h-3.5" />
-            <span>
-              {isSimulatedSurge
-                ? '⚡ Cloudburst Surge Active (+80mm/h)'
-                : '⚡ Simulate Cloudburst Surge'}
-            </span>
+            {isLight ? <Moon className="w-4 h-4 text-slate-700" /> : <Sun className="w-4 h-4 text-amber-300" />}
           </button>
 
-          {/* Instant CAP Emergency Broadcast Button */}
-          <button
-            onClick={onTriggerInstantAlert}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-[#1B4332] text-white hover:bg-[#2D6A4F] transition-all shadow-xs border border-[#2D6A4F]"
-          >
-            <Radio className="w-3.5 h-3.5 text-red-400" />
-            <span>Dispatch CAP Alert</span>
-          </button>
-          </>}
-
-          {/* Refresh telemetry */}
+          {/* Refresh Button */}
           <button
             onClick={handleRefresh}
-            title="Refresh Geological Telemetry"
-            className={`p-2 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] text-[#64748B] hover:text-[#1B4332] hover:bg-white transition-all ${
-              isRefreshing ? 'animate-spin text-[#1B4332]' : ''
-            }`}
+            title="Refresh Live Geotechnical Telemetry"
+            className={`p-2 rounded-xl border transition-all ${
+              isLight
+                ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+                : 'bg-[#0d261e] border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/50 hover:text-white'
+            } ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`}
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-4 h-4" />
           </button>
 
-          {/* Authenticated profile switcher */}
-          <div className="flex items-center gap-1 rounded-xl border border-[#CBD5E1] bg-white p-1 shadow-2xs">
+          {/* User Role Pill & Switcher */}
+          <div
+            className={`flex items-center gap-1 rounded-xl border p-1 shadow-xs ${
+              isLight
+                ? 'bg-slate-100 border-slate-300'
+                : 'bg-[#0d261e] border-emerald-800/70'
+            }`}
+          >
             <button
               onClick={onOpenAccount}
-              title="Change access profile"
-              className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-[#F1F5F9] transition-colors text-left"
+              title="Click to Switch Role (Citizen / Officer / Admin)"
+              className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-slate-200/80 dark:hover:bg-emerald-900/60 transition-colors text-left group"
             >
-              <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black text-white ${
-                user.role === 'admin' ? 'bg-purple-700' : user.role === 'citizen' ? 'bg-blue-600' : 'bg-[#1B4332]'
-              }`}>
+              <span
+                className={`w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black text-white shadow-xs ${
+                  user.role === 'admin'
+                    ? 'bg-purple-700'
+                    : user.role === 'citizen'
+                    ? 'bg-blue-600'
+                    : 'bg-emerald-600'
+                }`}
+              >
                 {user.avatarInitials}
               </span>
               <span className="hidden sm:block leading-tight">
-                <span className="block text-[11px] font-extrabold text-[#0F172A] max-w-28 truncate">{user.name}</span>
-                <span className="block text-[9px] font-bold text-[#64748B]">{user.badge}</span>
+                <span
+                  className={`block text-xs font-black truncate max-w-[110px] ${
+                    isLight ? 'text-slate-900' : 'text-white'
+                  }`}
+                >
+                  {user.role === 'citizen' ? 'Citizen' : user.role === 'admin' ? 'Admin' : 'Officer'}
+                </span>
+                <span className="block text-[9.5px] font-bold text-emerald-600 dark:text-emerald-300 font-mono">
+                  {user.role === 'citizen' ? 'Citizen Portal' : user.role === 'admin' ? 'System Administrator' : 'Field Operations'}
+                </span>
               </span>
-              {user.role === 'admin' ? <ShieldCheck className="w-3.5 h-3.5 text-purple-700" /> : <UserRound className="w-3.5 h-3.5 text-[#64748B]" />}
+              <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-white" />
             </button>
-            <button onClick={onSignOut} title="Sign out" className="p-1.5 rounded-lg text-[#64748B] hover:bg-red-50 hover:text-red-600 transition-colors">
+
+            <button
+              onClick={onSignOut}
+              title="Sign Out / Switch Role"
+              className="p-1.5 rounded-lg text-slate-400 hover:bg-red-100 dark:hover:bg-red-950/60 hover:text-red-600 dark:hover:text-red-300 transition-colors"
+            >
               <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -217,11 +442,15 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <button
             onClick={onOpenAlerts}
             title="View Active Landslide Alerts"
-            className="relative p-2 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] hover:bg-white text-[#475569] hover:text-[#0F172A] transition-colors"
+            className={`relative p-2 rounded-xl border transition-colors ${
+              isLight
+                ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+                : 'bg-[#0d261e] border-emerald-800/70 text-emerald-300 hover:bg-emerald-900/60 hover:text-white'
+            }`}
           >
             <Bell className="w-4 h-4" />
             {activeAlertsCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-[#DC2626] text-white text-[9px] font-extrabold animate-bounce">
+              <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-red-600 text-white text-[9px] font-black animate-bounce shadow-md">
                 {activeAlertsCount}
               </span>
             )}

@@ -26,18 +26,18 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
   const strokeDashoffset = arcLength - (normalizedRisk / 100) * arcLength;
 
   return (
-    <div className="bg-white rounded-xl border border-[#CBD5E1] p-5 shadow-xs flex flex-col justify-between">
+    <div className="bg-white dark:bg-[#0b1f16] rounded-2xl border border-slate-300 dark:border-emerald-800/60 p-5 shadow-xs flex flex-col justify-between">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-[#F1F5F9]">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-emerald-900/60">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-[#1B4332]/10 flex items-center justify-center text-[#1B4332]">
+          <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 flex items-center justify-center text-emerald-800 dark:text-emerald-400">
             <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-[13px] font-bold text-[#0F172A] uppercase tracking-wide">
+            <h3 className="text-[13px] font-bold text-slate-900 dark:text-white uppercase tracking-wide">
               Risk Intelligence
             </h3>
-            <p className="text-[10px] text-[#64748B]">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
               Real-time model inference & early warning
             </p>
           </div>
@@ -63,6 +63,7 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
             stroke="#E2E8F0"
             strokeWidth={strokeWidth}
             strokeLinecap="round"
+            className="dark:stroke-emerald-950"
           />
 
           {/* Calibrated Threshold Markers */}
@@ -100,46 +101,46 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
 
         {/* Center Gauge Value */}
         <div className="absolute top-14 left-1/2 -translate-x-1/2 text-center">
-          <span className="text-3xl font-extrabold tracking-tight text-[#0F172A] block leading-none">
+          <span className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white block leading-none">
             {score}%
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] mt-1 block">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-1 block">
             Current Risk
           </span>
         </div>
       </div>
 
       {/* Risk Metrics Strip */}
-      <div className="space-y-2 pt-2 border-t border-[#F1F5F9] text-[12px]">
+      <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-emerald-900/60 text-[12px]">
         {/* Trend */}
-        <div className="flex items-center justify-between py-1 px-2.5 rounded-lg bg-[#FAFBFB]">
-          <span className="text-[#64748B] flex items-center gap-1.5 text-[11px] font-medium">
-            <TrendingUp className="w-3.5 h-3.5 text-[#C2410C]" />
+        <div className="flex items-center justify-between py-1 px-2.5 rounded-lg bg-slate-50 dark:bg-[#071711]">
+          <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5 text-[11px] font-medium">
+            <TrendingUp className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
             24h Trend:
           </span>
-          <span className="font-bold text-[#C2410C]">
+          <span className="font-bold text-amber-600 dark:text-amber-400">
             {district.riskTrend}
           </span>
         </div>
 
         {/* Prediction */}
-        <div className="flex items-center justify-between py-1 px-2.5 rounded-lg bg-[#FAFBFB]">
-          <span className="text-[#64748B] flex items-center gap-1.5 text-[11px] font-medium">
-            <Clock className="w-3.5 h-3.5 text-[#1B4332]" />
+        <div className="flex items-center justify-between py-1 px-2.5 rounded-lg bg-slate-50 dark:bg-[#071711]">
+          <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5 text-[11px] font-medium">
+            <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             Prediction:
           </span>
-          <span className="font-semibold text-[#0F172A] text-right truncate max-w-[170px]" title={district.predictionWindow}>
+          <span className="font-semibold text-slate-900 dark:text-white text-right truncate max-w-[170px]" title={district.predictionWindow}>
             {district.predictionWindow}
           </span>
         </div>
 
         {/* Confidence */}
-        <div className="flex items-center justify-between py-1 px-2.5 rounded-lg bg-[#FAFBFB]">
-          <span className="text-[#64748B] flex items-center gap-1.5 text-[11px] font-medium">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+        <div className="flex items-center justify-between py-1 px-2.5 rounded-lg bg-slate-50 dark:bg-[#071711]">
+          <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1.5 text-[11px] font-medium">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             Model Confidence:
           </span>
-          <span className="font-bold text-[#166534]">
+          <span className="font-bold text-emerald-700 dark:text-emerald-400">
             {district.confidence}%
           </span>
         </div>

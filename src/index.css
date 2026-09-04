@@ -8,11 +8,26 @@
 
   body {
     font-family: var(--font-sans);
-    background-color: #F8F9FA;
-    color: #1E293B;
+    background-color: #f8fafc;
+    color: #0f172a;
     margin: 0;
     padding: 0;
     min-height: 100vh;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(13, 148, 136, 0.06) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, rgba(241, 245, 249, 0.6) 0px, transparent 100%);
+    background-attachment: fixed;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  body.dark, html.dark body {
+    background-color: #06140e;
+    color: #f1f5f9;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(6, 78, 59, 0.25) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(4, 47, 46, 0.2) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.4) 0px, transparent 100%);
   }
 
   #root {
@@ -29,32 +44,42 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #F1F5F9;
+  background: #f1f5f9;
+}
+
+body.dark ::-webkit-scrollbar-track {
+  background: #071711;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: #cbd5e1;
   border-radius: 9999px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+body.dark ::-webkit-scrollbar-thumb {
+  background: #0f382a;
 }
 
-/* Leaflet Customizations for Clean Light Theme */
+::-webkit-scrollbar-thumb:hover {
+  background: #10b981;
+}
+
+/* Leaflet Customizations for Dark Geological Theme */
 .leaflet-container {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
-  background-color: #E2E8F0;
+  background-color: #081a13 !important;
   width: 100%;
   height: 100%;
   z-index: 1;
 }
 
 .leaflet-popup-content-wrapper {
-  border-radius: 10px;
+  border-radius: 16px;
   padding: 0;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-  border: 1px solid #E2E8F0;
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.6);
+  background: #0b2218 !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .leaflet-popup-content {
@@ -63,41 +88,55 @@
 }
 
 .leaflet-popup-tip {
-  background: #FFFFFF;
-  border: 1px solid #E2E8F0;
+  background: #0b2218 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .leaflet-bar {
-  border: 1px solid #E2E8F0 !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
-  border-radius: 8px !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+  border-radius: 12px !important;
   overflow: hidden;
+  background-color: #0b2218 !important;
 }
 
 .leaflet-bar a {
-  background-color: #FFFFFF !important;
-  color: #1E293B !important;
-  border-bottom: 1px solid #F1F5F9 !important;
+  background-color: #0b2218 !important;
+  color: #86efac !important;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2) !important;
   transition: all 0.15s ease;
 }
 
 .leaflet-bar a:hover {
-  background-color: #F8FAFC !important;
-  color: #0F172A !important;
+  background-color: #113827 !important;
+  color: #ffffff !important;
 }
 
-/* Custom pulsing animation for critical risk markers */
+/* Animations */
 @keyframes subtle-pulse {
   0%, 100% {
     transform: scale(1);
     opacity: 0.9;
   }
   50% {
-    transform: scale(1.18);
+    transform: scale(1.15);
     opacity: 0.6;
   }
 }
 
 .pulse-critical {
-  animation: subtle-pulse 2.2s infinite ease-in-out;
+  animation: subtle-pulse 2s infinite ease-in-out;
+}
+
+@keyframes radar-sweep {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.radar-sweep-anim {
+  animation: radar-sweep 4s linear infinite;
 }

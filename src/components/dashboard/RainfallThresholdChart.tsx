@@ -39,23 +39,23 @@ export const RainfallThresholdChart: React.FC<RainfallThresholdChartProps> = ({
   const isWarningZone = currentIntensity >= 11.2 && !isThresholdBreached;
 
   return (
-    <div className="bg-white rounded-2xl border border-[#CBD5E1] p-5 shadow-xs flex flex-col justify-between">
+    <div className="bg-white dark:bg-[#0b1f16] rounded-2xl border border-slate-300 dark:border-emerald-800/60 p-5 shadow-xs flex flex-col justify-between">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-[#F1F5F9]">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-emerald-900/60">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
             <CloudRain className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-[13px] font-bold text-[#0F172A] uppercase tracking-wide">
+              <h3 className="text-[13px] font-bold text-slate-900 dark:text-white uppercase tracking-wide">
                 Rainfall I-D Threshold Curve (GSI Model)
               </h3>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 font-semibold border border-blue-200 dark:border-blue-800/60">
                 I = α · D⁻ᵝ
               </span>
             </div>
-            <p className="text-[10px] text-[#64748B]">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
               Empirical Intensity-Duration landslide triggering envelope
             </p>
           </div>
@@ -66,8 +66,8 @@ export const RainfallThresholdChart: React.FC<RainfallThresholdChartProps> = ({
             isThresholdBreached
               ? 'bg-red-600 text-white border-red-700 animate-pulse'
               : isWarningZone
-              ? 'bg-amber-100 text-amber-900 border-amber-300'
-              : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+              ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+              : 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
           }`}
         >
           {isThresholdBreached
@@ -152,39 +152,39 @@ export const RainfallThresholdChart: React.FC<RainfallThresholdChartProps> = ({
       </div>
 
       {/* Threshold Status Indicators & Equation Footnote */}
-      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#F1F5F9] text-[11px]">
-        <div className="p-2 rounded-xl bg-slate-50 border border-slate-200">
-          <span className="text-[10px] text-[#64748B] block font-medium">
+      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-emerald-900/60 text-[11px]">
+        <div className="p-2 rounded-xl bg-slate-50 dark:bg-[#071711] border border-slate-200 dark:border-emerald-900/60">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">
             24h Mean Intensity
           </span>
-          <span className="text-[13px] font-bold text-[#0F172A] font-mono">
+          <span className="text-[13px] font-bold text-slate-900 dark:text-white font-mono">
             {currentIntensity} mm/h
           </span>
-          <span className="text-[9px] text-slate-500 block">
+          <span className="text-[9px] text-slate-500 dark:text-slate-400 block">
             ({active24h} mm total)
           </span>
         </div>
 
-        <div className="p-2 rounded-xl bg-red-50/50 border border-red-200">
-          <span className="text-[10px] text-red-700 block font-medium">
+        <div className="p-2 rounded-xl bg-red-50/50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60">
+          <span className="text-[10px] text-red-700 dark:text-red-300 block font-medium">
             GSI Trigger Limit
           </span>
-          <span className="text-[13px] font-bold text-red-700 font-mono">
+          <span className="text-[13px] font-bold text-red-700 dark:text-red-300 font-mono">
             16.5 mm/h
           </span>
-          <span className="text-[9px] text-red-600 block">
+          <span className="text-[9px] text-red-600 dark:text-red-400 block">
             {isThresholdBreached ? '+24% over limit' : 'Safety buffer active'}
           </span>
         </div>
 
-        <div className="p-2 rounded-xl bg-blue-50/50 border border-blue-200">
-          <span className="text-[10px] text-blue-700 block font-medium">
+        <div className="p-2 rounded-xl bg-blue-50/50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60">
+          <span className="text-[10px] text-blue-700 dark:text-blue-300 block font-medium">
             Antecedent Index (72h)
           </span>
-          <span className="text-[13px] font-bold text-blue-700 font-mono">
+          <span className="text-[13px] font-bold text-blue-700 dark:text-blue-300 font-mono">
             {Math.round(active24h * 1.6)} mm
           </span>
-          <span className="text-[9px] text-blue-600 block">
+          <span className="text-[9px] text-blue-600 dark:text-blue-400 block">
             Soil pore saturation
           </span>
         </div>

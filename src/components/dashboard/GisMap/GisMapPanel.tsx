@@ -38,6 +38,20 @@ const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({
   return null;
 };
 
+// Invalidate size when container expands or contracts
+const MapResizeController: React.FC<{ isFullscreen: boolean }> = ({ isFullscreen }) => {
+  const map = useMap();
+  useEffect(() => {
+    const timer1 = setTimeout(() => map.invalidateSize(), 100);
+    const timer2 = setTimeout(() => map.invalidateSize(), 300);
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, [isFullscreen, map]);
+  return null;
+};
+
 // Custom SVG HTML Icons for Leaflet markers to ensure clean, crisp rendering
 const createCustomIcon = (
   bg: string,
@@ -125,6 +139,17 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
     setVisibleLayers((prev) => ({ ...prev, [layerKey]: !prev[layerKey] }));
   };
 
+  // Close fullscreen on Esc key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
   const tileConfig = {
     topo: {
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
@@ -145,22 +170,27 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
 
   return (
     <div
-      className={`relative bg-[#F1F5F9] rounded-xl border border-[#CBD5E1] overflow-hidden shadow-sm flex flex-col transition-all duration-200 ${
+      className={`relative bg-[#F1F5F9] dark:bg-[#071711] rounded-2xl border border-slate-300 dark:border-emerald-800/60 overflow-hidden shadow-md flex flex-col transition-all duration-300 ${
         isFullscreen
-          ? 'fixed inset-4 z-50 rounded-2xl shadow-2xl'
-          : 'h-[520px] w-full'
+          ? 'fixed inset-0 z-50 rounded-none shadow-2xl h-screen w-screen max-w-full max-h-full overflow-hidden'
+          : 'h-[540px] w-full'
       }`}
     >
       {/* Map Header Bar */}
-      <div className="bg-white/95 backdrop-blur-xs px-4 py-2.5 border-b border-[#E2E8F0] flex items-center justify-between z-10">
+      <div className="bg-white/95 dark:bg-[#0b1f16]/95 backdrop-blur-xs px-4 py-2.5 border-b border-slate-200 dark:border-emerald-900/60 flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#1B4332] animate-pulse" />
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
           <div>
-            <h2 className="text-[13px] font-bold text-[#0F172A] flex items-center gap-2">
+            <h2 className="text-[13px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <span>{district.name} GIS Live Risk Map</span>
-              <span className="text-[10px] font-medium text-[#64748B] bg-[#F1F5F9] px-2 py-0.5 rounded-md border border-[#E2E8F0]">
+              <span className="text-[10px] font-medium text-slate-600 dark:text-emerald-300 bg-slate-100 dark:bg-emerald-950/80 px-2 py-0.5 rounded-md border border-slate-200 dark:border-emerald-800 font-mono">
                 Elev. ~{district.riskZones[0]?.elevation || 2800}m
               </span>
+              {isFullscreen && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-600 text-white font-mono">
+                  Full View
+                </span>
+              )}
             </h2>
           </div>
         </div>
@@ -171,17 +201,17 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
           <div className="relative">
             <button
               onClick={() => setShowLayersMenu(!showLayersMenu)}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-semibold text-[#334155] bg-white hover:bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg shadow-2xs transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-[#0c261c] hover:bg-slate-50 dark:hover:bg-[#123829] border border-slate-300 dark:border-emerald-700/60 rounded-lg shadow-2xs transition-colors"
             >
-              <Layers className="w-3.5 h-3.5 text-[#1B4332]" />
+              <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Layers</span>
             </button>
 
             {/* Layer Popover Menu */}
             {showLayersMenu && (
-              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white rounded-xl border border-[#E2E8F0] shadow-lg p-3 z-50 space-y-3">
+              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white dark:bg-[#0c221a] rounded-xl border border-slate-200 dark:border-emerald-700/70 shadow-lg p-3 z-50 space-y-3">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] mb-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-emerald-400/80 mb-1.5">
                     Base Imagery
                   </p>
                   <div className="grid grid-cols-1 gap-1">
@@ -194,8 +224,8 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
                         }}
                         className={`w-full text-left px-2.5 py-1.5 text-[12px] rounded-md transition-colors flex items-center justify-between ${
                           mapLayer === layer
-                            ? 'bg-[#1B4332] text-white font-semibold'
-                            : 'hover:bg-[#F1F5F9] text-[#334155]'
+                            ? 'bg-emerald-600 text-white font-semibold'
+                            : 'hover:bg-slate-100 dark:hover:bg-emerald-900/40 text-slate-700 dark:text-slate-200'
                         }`}
                       >
                         <span>{tileConfig[layer].name}</span>
@@ -205,13 +235,13 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
                   </div>
                 </div>
 
-                <div className="h-px bg-[#F1F5F9]" />
+                <div className="h-px bg-slate-200 dark:bg-emerald-900/60" />
 
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] mb-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-emerald-400/80 mb-1.5">
                     Map Layers
                   </p>
-                  <div className="space-y-1.5 text-[12px] text-[#334155]">
+                  <div className="space-y-1.5 text-[12px] text-slate-700 dark:text-slate-300">
                     {[
                       { key: 'riskZones', label: 'Risk Heat Polygons', icon: Eye },
                       { key: 'roads', label: 'Roads & Blockages', icon: Route },
@@ -221,13 +251,13 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
                     ].map((item) => (
                       <label
                         key={item.key}
-                        className="flex items-center gap-2 cursor-pointer hover:text-[#0F172A]"
+                        className="flex items-center gap-2 cursor-pointer hover:text-emerald-600 dark:hover:text-white"
                       >
                         <input
                           type="checkbox"
                           checked={visibleLayers[item.key as keyof typeof visibleLayers]}
                           onChange={() => toggleLayer(item.key as keyof typeof visibleLayers)}
-                          className="rounded border-[#CBD5E1] text-[#1B4332] focus:ring-[#1B4332]"
+                          className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                         />
                         <span>{item.label}</span>
                       </label>
@@ -240,13 +270,23 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
 
           <button
             onClick={() => setIsFullscreen(!isFullscreen)}
-            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-            className="p-1.5 text-[#64748B] hover:text-[#0F172A] bg-white hover:bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg shadow-2xs transition-colors"
+            title={isFullscreen ? 'Exit Fullscreen (Esc)' : 'Expand Map Fullscreen'}
+            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg shadow-2xs transition-colors border ${
+              isFullscreen
+                ? 'bg-red-600 hover:bg-red-500 text-white border-red-500 ring-2 ring-red-400/30'
+                : 'text-slate-700 dark:text-slate-200 bg-white dark:bg-[#0c261c] hover:bg-slate-50 dark:hover:bg-[#123829] border-slate-300 dark:border-emerald-700/60'
+            }`}
           >
             {isFullscreen ? (
-              <Minimize2 className="w-3.5 h-3.5" />
+              <>
+                <Minimize2 className="w-3.5 h-3.5" />
+                <span>Exit Fullscreen</span>
+              </>
             ) : (
-              <Maximize2 className="w-3.5 h-3.5" />
+              <>
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span>Expand</span>
+              </>
             )}
           </button>
         </div>
@@ -261,6 +301,7 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
           style={{ width: '100%', height: '100%' }}
         >
           <MapController center={district.center} zoom={district.zoom} />
+          <MapResizeController isFullscreen={isFullscreen} />
 
           <TileLayer
             key={mapLayer}

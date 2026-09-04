@@ -2,14 +2,10 @@ import React from 'react';
 import {
   Mountain,
   Map,
-  Layers,
-  CloudRain,
   Route,
   Bell,
   FileSpreadsheet,
-  Satellite,
   Ambulance,
-  Settings,
   CheckCircle2,
 } from 'lucide-react';
 
@@ -17,6 +13,8 @@ interface SidebarProps {
   activeNav: string;
   onNavigate: (navId: string) => void;
   criticalAlertsCount: number;
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
 interface NavItem {
@@ -24,55 +22,74 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   badge?: number;
-  isNew?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Landslide Command Hub', icon: Mountain },
-  { id: 'live-risk-map', label: 'GIS 3D Topography Map', icon: Map },
-  { id: 'slope-stability', label: 'Slope Stability & FoS', icon: Layers, isNew: true },
-  { id: 'rainfall-threshold', label: 'I-D Rainfall Envelope', icon: CloudRain, isNew: true },
+  { id: 'live-risk-map', label: 'High-Risk Zones & Map', icon: Map },
   { id: 'alerts', label: 'Landslide Alerts (CAP)', icon: Bell },
   { id: 'road-connectivity', label: 'Hill Highway Corridors', icon: Route },
-  { id: 'insar-sensors', label: 'Borehole & InSAR Telemetry', icon: Satellite },
-  { id: 'field-reports', label: 'Ground Geotag Reports', icon: FileSpreadsheet },
+  { id: 'field-reports', label: 'Ground Incident Reports', icon: FileSpreadsheet },
   { id: 'emergency-response', label: 'NDMA Evacuation SOPs', icon: Ambulance },
-  { id: 'settings', label: 'Sensor Network Config', icon: Settings },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeNav,
   onNavigate,
   criticalAlertsCount,
+  isOpenMobile = false,
+  onCloseMobile,
 }) => {
   return (
-    <aside className="w-64 bg-white border-r border-[#E2E8F0] flex flex-col justify-between h-screen sticky top-0 select-none z-30 shadow-[1px_0_6px_rgba(0,0,0,0.03)]">
-      {/* Brand Header */}
-      <div>
-        <div className="p-4 border-b border-[#F1F5F9] bg-gradient-to-b from-[#F0FDF4]/50 to-white">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#1B4332] via-[#2D6A4F] to-[#40916C] flex items-center justify-center text-white shadow-md shadow-[#1B4332]/20 ring-2 ring-[#D8F3DC]">
-              <Mountain className="w-5 h-5 text-[#D8F3DC]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h1 className="font-extrabold text-[15px] tracking-tight text-[#0F172A]">
-                  BHU-GUARD
-                </h1>
-                <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-[#1B4332] text-white">
-                  LEWS AI
-                </span>
+    <>
+      {/* Mobile Drawer Backdrop */}
+      {isOpenMobile && (
+        <div
+          onClick={onCloseMobile}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden animate-in fade-in"
+        />
+      )}
+
+      <aside
+        className={`w-64 bg-[#071610] border-r border-emerald-900/60 flex flex-col justify-between h-screen fixed md:sticky top-0 select-none z-50 md:z-20 shadow-2xl text-white transition-transform duration-200 ${
+          isOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        {/* Brand Header */}
+        <div>
+          <div className="p-4 border-b border-emerald-900/60 bg-gradient-to-b from-emerald-950/60 to-[#071610] flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-[#0d2a1f] flex items-center justify-center text-white shadow-lg shadow-emerald-950/80 border border-emerald-400/30 ring-1 ring-emerald-500/20">
+                <Mountain className="w-5 h-5 text-emerald-200" />
               </div>
-              <p className="text-[10px] text-[#475569] font-medium leading-tight">
-                Landslide Early Warning System
-              </p>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h1 className="font-extrabold text-[15px] tracking-tight text-white">
+                    BHU-GUARD
+                  </h1>
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-emerald-800 text-emerald-200 border border-emerald-600/40">
+                    LEWS
+                  </span>
+                </div>
+                <p className="text-[10px] text-emerald-400/80 font-mono leading-tight">
+                  Northeast Telemetry Grid
+                </p>
+              </div>
             </div>
+
+            {onCloseMobile && (
+              <button
+                onClick={onCloseMobile}
+                className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            )}
           </div>
-        </div>
 
         {/* Navigation Items */}
         <nav className="p-2.5 space-y-1">
-          <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#94A3B8] flex items-center justify-between">
+          <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400/70 flex items-center justify-between">
             <span>Disaster Ops & Modeling</span>
           </div>
 
@@ -84,84 +101,81 @@ export const Sidebar: React.FC<SidebarProps> = ({
             return (
               <button
                 key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[12.5px] font-medium transition-all duration-150 group text-left ${
+                onClick={() => {
+                  onNavigate(item.id);
+                  if (onCloseMobile) onCloseMobile();
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150 group text-left ${
                   isActive
-                    ? 'bg-[#1B4332] text-white shadow-sm font-bold ring-1 ring-[#2D6A4F]'
-                    : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-950/80 font-bold border border-emerald-400/30 ring-1 ring-emerald-400/30'
+                    : 'text-slate-300 hover:bg-[#0f291e] hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <Icon
                     className={`w-4 h-4 transition-colors ${
                       isActive
-                        ? 'text-[#86EFAC]'
-                        : 'text-[#64748B] group-hover:text-[#1B4332]'
+                        ? 'text-white'
+                        : 'text-emerald-400 group-hover:text-emerald-300'
                     }`}
                   />
                   <span>{item.label}</span>
                 </div>
 
-                <div className="flex items-center gap-1">
-                  {item.isNew && !isActive && (
-                    <span className="px-1.5 py-0.2 text-[9px] font-bold rounded bg-emerald-100 text-emerald-800 uppercase font-mono">
-                      NEW
-                    </span>
-                  )}
-                  {badgeCount !== undefined && badgeCount > 0 && (
-                    <span
-                      className={`px-1.5 py-0.2 text-[10px] font-extrabold rounded-full ${
-                        isActive
-                          ? 'bg-red-500 text-white'
-                          : 'bg-red-100 text-red-700'
-                      }`}
-                    >
-                      {badgeCount}
-                    </span>
-                  )}
-                </div>
+                {badgeCount !== undefined && badgeCount > 0 && (
+                  <span
+                    className={`px-2 py-0.5 text-[10px] font-black rounded-full ${
+                      isActive
+                        ? 'bg-red-500 text-white shadow-xs'
+                        : 'bg-red-600/30 text-red-300 border border-red-500/40'
+                    }`}
+                  >
+                    {badgeCount}
+                  </span>
+                )}
               </button>
             );
           })}
         </nav>
       </div>
 
-      {/* Footer Status & SIH Team Info */}
-      <div className="p-3 border-t border-[#F1F5F9] bg-[#FAFBFB] space-y-2.5">
+      {/* Footer Status */}
+      <div className="p-3 border-t border-emerald-900/60 bg-[#06120d] space-y-2">
         {/* Real-time Telemetry Node Status */}
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-2 flex items-center justify-between shadow-2xs">
+        <div className="bg-[#0b1f16] border border-emerald-800/40 rounded-xl p-2.5 flex items-center justify-between shadow-inner">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             <div>
-              <p className="text-[10.5px] font-bold text-[#1E293B] leading-tight">
+              <p className="text-[11px] font-bold text-white leading-tight">
                 GSI Sentinel-1 InSAR
               </p>
-              <p className="text-[9.5px] text-[#64748B] leading-tight">
-                Sub-cm SAR telemetry active
+              <p className="text-[9.5px] text-emerald-400/80 leading-tight font-mono">
+                ML Pipeline Active
               </p>
             </div>
           </div>
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
         </div>
 
-        {/* SIH Team Credential Card */}
-        <div className="flex items-center gap-2.5 p-1 rounded-xl bg-gradient-to-r from-slate-100 to-slate-50 border border-slate-200">
-          <div className="w-8 h-8 rounded-lg bg-[#1B4332] text-white flex items-center justify-center text-[11px] font-black shadow-xs font-mono">
-            SIH
+        {/* System Info Card */}
+        <div className="flex items-center gap-2 p-1.5 rounded-xl bg-emerald-950/40 border border-emerald-800/30">
+          <div className="w-7 h-7 rounded-lg bg-emerald-800 text-emerald-200 flex items-center justify-center text-[10px] font-black font-mono">
+            NE
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold text-[#0F172A] truncate">
-              SIH 2026 PS-01 Team
+            <p className="text-[11px] font-bold text-white truncate">
+              LEWS Core Grid
             </p>
-            <p className="text-[9.5px] text-[#64748B] truncate">
-              National LEWS AI Deployment
+            <p className="text-[9.5px] text-slate-400 truncate">
+              Landslide Early Warning
             </p>
           </div>
         </div>
       </div>
     </aside>
+    </>
   );
 };

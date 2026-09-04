@@ -1,8 +1,9 @@
 import React from 'react';
 import {
   X,
-  Ban,
   Truck,
+  Route,
+  Clock,
 } from 'lucide-react';
 import type { Road } from '../../types/dashboard';
 
@@ -20,27 +21,33 @@ export const RoadsDrawer: React.FC<RoadsDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs animate-in fade-in">
-      <div className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 border-l border-[#CBD5E1]">
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[#0b1b15] border border-emerald-500/30 w-full max-w-2xl max-h-[85vh] rounded-3xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-150 text-white overflow-hidden"
+      >
         {/* Header */}
-        <div className="p-5 border-b border-[#E2E8F0] flex items-center justify-between bg-[#F8FAFC]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-orange-700">
-              <Ban className="w-4 h-4" />
+        <div className="p-5 border-b border-emerald-900/60 flex items-center justify-between bg-gradient-to-r from-emerald-950 via-[#0a231b] to-emerald-950">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-600/30 border border-amber-500/40 flex items-center justify-center text-amber-400">
+              <Route className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[#0F172A]">
-                Highway & Road Connectivity
+              <h3 className="text-base font-extrabold text-white">
+                Hill Highway & Transit Corridor Status
               </h3>
-              <p className="text-[11px] text-[#64748B]">
-                Trans-Arunachal & Arterial Passages
+              <p className="text-[11px] text-emerald-300/80 font-mono">
+                BRO / NHIDCL Himalayan Arteries & Sinking Zones
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-[#64748B] hover:text-[#0F172A] hover:bg-[#E2E8F0] rounded-lg transition-colors"
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-emerald-900/60 rounded-xl transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -55,52 +62,45 @@ export const RoadsDrawer: React.FC<RoadsDrawerProps> = ({
             return (
               <div
                 key={road.id}
-                className="p-4 rounded-xl border border-[#E2E8F0] bg-white shadow-2xs space-y-2.5"
+                className="p-4 rounded-2xl border border-emerald-800/40 bg-[#0e271e] hover:border-emerald-500/50 transition-all space-y-2.5 shadow-xs"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">
-                      {road.highwayCode}
-                    </span>
-                    <h4 className="text-[13px] font-bold text-[#0F172A]">
-                      {road.name}
-                    </h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-white">
+                        {road.name}
+                      </h4>
+                      <span className="text-[10px] text-emerald-400 font-mono">
+                        {road.highwayCode}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      {road.blockageReason}
+                    </p>
                   </div>
+
                   <span
-                    className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${
+                    className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
                       isBlocked
-                        ? 'bg-[#FEE2E2] text-[#B91C1C] border-[#FCA5A5]'
+                        ? 'bg-red-500/20 text-red-300 border-red-500/40'
                         : isRestricted
-                        ? 'bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]'
-                        : 'bg-[#DCFCE7] text-[#166534] border-[#86EFAC]'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                     }`}
                   >
                     {road.status}
                   </span>
                 </div>
 
-                <p className="text-[11px] text-[#475569] leading-relaxed bg-[#FAFBFB] p-2.5 rounded-lg border border-[#F1F5F9]">
-                  <strong>Incident:</strong> {road.blockageReason}
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-emerald-900/60 text-[11px] text-slate-400">
+                  <span className="flex items-center gap-1.5 text-slate-300">
+                    <Truck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Alt: {road.bypassRouteName || 'None'}</span>
+                  </span>
 
-                <div className="space-y-1 text-[11px] text-[#334155]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#64748B]">Est. Clearance Time:</span>
-                    <strong className="text-[#0F172A]">{road.clearanceEstimate}</strong>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-[#64748B]">Bypass Status:</span>
-                    <span className={road.bypassAvailable ? 'text-emerald-700 font-semibold' : 'text-red-600 font-semibold'}>
-                      {road.bypassAvailable ? road.bypassRouteName : 'No Bypass Route'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between text-[10px] text-[#94A3B8]">
-                  <span>Last status check: {road.lastUpdated}</span>
-                  <span className="flex items-center gap-1 text-[#1B4332] font-semibold">
-                    <Truck className="w-3 h-3" /> BRO Clearing Unit Active
+                  <span className="flex items-center gap-1 text-emerald-400 font-mono text-[10px]">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Clearance: {road.clearanceEstimate}</span>
                   </span>
                 </div>
               </div>

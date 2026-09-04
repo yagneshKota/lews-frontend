@@ -42,43 +42,43 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
   const [activeChartTab, setActiveChartTab] = useState<'riskTrend' | 'rainfallVsRisk'>('riskTrend');
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
       {/* Left (7 Cols): Trend Analytics Charts */}
-      <div className="lg:col-span-7 bg-white rounded-xl border border-[#CBD5E1] p-5 shadow-xs flex flex-col justify-between">
+      <div className="lg:col-span-7 bg-white dark:bg-[#0b1f16] rounded-2xl border border-slate-300 dark:border-emerald-800/60 p-5 shadow-xs flex flex-col justify-between">
         {/* Header & Chart Tabs */}
-        <div className="flex items-center justify-between pb-3 border-b border-[#F1F5F9]">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-emerald-900/60">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#1B4332]/10 flex items-center justify-center text-[#1B4332]">
+            <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 flex items-center justify-center text-emerald-800 dark:text-emerald-400">
               <TrendingUp className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-[13px] font-bold text-[#0F172A] uppercase tracking-wide">
+              <h3 className="text-[13px] font-bold text-slate-900 dark:text-white uppercase tracking-wide">
                 Temporal Analysis (24 Hours)
               </h3>
-              <p className="text-[10px] text-[#64748B]">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
                 Hourly risk trajectory & precipitation correlation
               </p>
             </div>
           </div>
 
           {/* Tab Switcher */}
-          <div className="flex items-center gap-1 bg-[#F1F5F9] p-1 rounded-lg">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#071711] p-1 rounded-xl">
             <button
               onClick={() => setActiveChartTab('riskTrend')}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
                 activeChartTab === 'riskTrend'
-                  ? 'bg-white text-[#1B4332] shadow-2xs'
-                  : 'text-[#64748B] hover:text-[#0F172A]'
+                  ? 'bg-white dark:bg-emerald-700 text-slate-900 dark:text-white shadow-2xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Risk Trend
             </button>
             <button
               onClick={() => setActiveChartTab('rainfallVsRisk')}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
                 activeChartTab === 'rainfallVsRisk'
-                  ? 'bg-white text-[#1B4332] shadow-2xs'
-                  : 'text-[#64748B] hover:text-[#0F172A]'
+                  ? 'bg-white dark:bg-emerald-700 text-slate-900 dark:text-white shadow-2xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Rainfall vs Risk
@@ -108,9 +108,10 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: '#0F172A',
+                    color: '#FFFFFF',
                     borderRadius: '8px',
-                    border: '1px solid #CBD5E1',
+                    border: '1px solid #334155',
                     fontSize: '11px',
                     boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
                   }}
@@ -125,9 +126,9 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
                 <Line
                   type="monotone"
                   dataKey="risk"
-                  stroke="#1B4332"
+                  stroke="#10b981"
                   strokeWidth={2.5}
-                  dot={{ r: 3, fill: '#1B4332', strokeWidth: 1, stroke: '#FFFFFF' }}
+                  dot={{ r: 3, fill: '#10b981', strokeWidth: 1, stroke: '#FFFFFF' }}
                   activeDot={{ r: 5, fill: '#EA580C' }}
                 />
               </LineChart>
@@ -163,9 +164,10 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: '#0F172A',
+                    color: '#FFFFFF',
                     borderRadius: '8px',
-                    border: '1px solid #CBD5E1',
+                    border: '1px solid #334155',
                     fontSize: '11px',
                   }}
                 />
@@ -182,9 +184,9 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
                   type="monotone"
                   dataKey="risk"
                   name="Risk Score (%)"
-                  stroke="#1B4332"
+                  stroke="#10b981"
                   strokeWidth={2.5}
-                  dot={{ r: 3, fill: '#1B4332' }}
+                  dot={{ r: 3, fill: '#10b981' }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -192,14 +194,14 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
         </div>
 
         {/* Chart Subtext / Threshold Summary */}
-        <div className="flex items-center justify-between pt-2 border-t border-[#F1F5F9] text-[10px] text-[#64748B]">
+        <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-emerald-900/60 text-[10px] text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-0.5 bg-[#1B4332]" /> Landslide Risk Score
+              <span className="w-2.5 h-0.5 bg-emerald-500" /> Landslide Risk Score
             </span>
             {activeChartTab === 'rainfallVsRisk' && (
-              <span className="flex items-center gap-1.5 text-[#2563EB]">
-                <span className="w-2.5 h-2 bg-[#93C5FD] rounded-xs" /> Cumulative Rain
+              <span className="flex items-center gap-1.5 text-blue-500 dark:text-blue-400">
+                <span className="w-2.5 h-2 bg-blue-300 rounded-xs" /> Cumulative Rain
               </span>
             )}
           </div>
@@ -210,17 +212,17 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
       {/* Right (5 Cols): Compact Recent Alerts & Field Reports */}
       <div className="lg:col-span-5 grid grid-cols-1 gap-4">
         {/* Recent Alerts Feed */}
-        <div className="bg-white rounded-xl border border-[#CBD5E1] p-4 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between pb-2 border-b border-[#F1F5F9]">
+        <div className="bg-white dark:bg-[#0b1f16] rounded-2xl border border-slate-300 dark:border-emerald-800/60 p-4 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-emerald-900/60">
             <div className="flex items-center gap-2">
-              <Bell className="w-3.5 h-3.5 text-[#DC2626]" />
-              <h4 className="text-[12px] font-bold text-[#0F172A] uppercase tracking-wide">
+              <Bell className="w-3.5 h-3.5 text-red-500" />
+              <h4 className="text-[12px] font-bold text-slate-900 dark:text-white uppercase tracking-wide">
                 Recent Alerts
               </h4>
             </div>
             <button
               onClick={onOpenAlerts}
-              className="text-[11px] font-semibold text-[#1B4332] hover:underline flex items-center gap-0.5"
+              className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-0.5"
             >
               View All ({alerts.length})
               <ArrowUpRight className="w-3 h-3" />
@@ -235,7 +237,7 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
                 <div
                   key={alt.id}
                   onClick={() => onSelectAlert(alt)}
-                  className="p-2 rounded-lg border border-[#F1F5F9] hover:border-[#CBD5E1] bg-[#FAFBFB] hover:bg-white transition-all cursor-pointer flex items-center justify-between gap-2"
+                  className="p-2.5 rounded-xl border border-slate-100 dark:border-emerald-900/60 hover:border-slate-300 dark:hover:border-emerald-700 bg-slate-50 dark:bg-[#071711] hover:bg-white dark:hover:bg-[#0f2a1e] transition-all cursor-pointer flex items-center justify-between gap-2"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span
@@ -244,16 +246,16 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
                       {alt.severity}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-[12px] font-bold text-[#0F172A] truncate">
+                      <p className="text-[12px] font-bold text-slate-900 dark:text-white truncate">
                         {alt.location}
                       </p>
-                      <p className="text-[10px] text-[#64748B] truncate">
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
                         {alt.riskScore}% risk &bull; {alt.timeAgo}
                       </p>
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-bold text-[#1B4332] shrink-0">
+                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 shrink-0">
                     Review &rarr;
                   </span>
                 </div>
@@ -263,17 +265,17 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
         </div>
 
         {/* Recent Field Reports Feed */}
-        <div className="bg-white rounded-xl border border-[#CBD5E1] p-4 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between pb-2 border-b border-[#F1F5F9]">
+        <div className="bg-white dark:bg-[#0b1f16] rounded-2xl border border-slate-300 dark:border-emerald-800/60 p-4 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-emerald-900/60">
             <div className="flex items-center gap-2">
-              <FileSpreadsheet className="w-3.5 h-3.5 text-[#2563EB]" />
-              <h4 className="text-[12px] font-bold text-[#0F172A] uppercase tracking-wide">
+              <FileSpreadsheet className="w-3.5 h-3.5 text-blue-500" />
+              <h4 className="text-[12px] font-bold text-slate-900 dark:text-white uppercase tracking-wide">
                 Recent Field Reports
               </h4>
             </div>
             <button
               onClick={onOpenFieldReports}
-              className="text-[11px] font-semibold text-[#1B4332] hover:underline flex items-center gap-0.5"
+              className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-0.5"
             >
               View All ({fieldReports.length})
               <ArrowUpRight className="w-3 h-3" />
@@ -285,26 +287,26 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
               <div
                 key={report.id}
                 onClick={() => onSelectReport(report)}
-                className="p-2 rounded-lg border border-[#F1F5F9] hover:border-[#CBD5E1] bg-[#FAFBFB] hover:bg-white transition-all cursor-pointer flex items-center justify-between gap-2"
+                className="p-2.5 rounded-xl border border-slate-100 dark:border-emerald-900/60 hover:border-slate-300 dark:hover:border-emerald-700 bg-slate-50 dark:bg-[#071711] hover:bg-white dark:hover:bg-[#0f2a1e] transition-all cursor-pointer flex items-center justify-between gap-2"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-[#0F172A] truncate">
+                    <span className="text-[11px] font-bold text-slate-900 dark:text-white truncate">
                       {report.hazardType}
                     </span>
                     {report.hasPhotos && (
-                      <span className="flex items-center gap-0.5 text-[9px] font-semibold text-[#2563EB] bg-blue-50 px-1 py-0.2 rounded border border-blue-200">
+                      <span className="flex items-center gap-0.5 text-[9px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 px-1 py-0.2 rounded border border-blue-200 dark:border-blue-800">
                         <Camera className="w-2.5 h-2.5" />
                         {report.photoCount || 1}
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] text-[#64748B] truncate">
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
                     {report.location} &bull; by {report.observerName} ({report.timeAgo})
                   </p>
                 </div>
 
-                <span className="text-[10px] font-semibold text-[#64748B] shrink-0">
+                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 shrink-0">
                   Inspect &rarr;
                 </span>
               </div>
