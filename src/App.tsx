@@ -168,7 +168,7 @@ export function App() {
             rainfall24h: liveEnv.rainfall_24h,
             soilMoisture: Math.round(liveEnv.soil_moisture * 100),
             temperature: liveEnv.temperature,
-            groundMovement: livePred?.risk_tier === 'CRITICAL' ? 1.8 : 0.4,
+            groundMovement: null, // No IoT inclinometer data from Open-Meteo — never fabricate
             humidity: liveEnv.humidity,
             windSpeed: liveEnv.wind_speed,
           }
@@ -288,7 +288,7 @@ export function App() {
         // ─────────────────────────────────────────────────────────
         riskTrend: isLive && livePred?.risk_tier === 'CRITICAL' ? '⚠️ Increasing threat' : isLive ? 'Stable monitored' : 'N/A – data unavailable',
         predictionWindow: isLive && livePred?.risk_tier === 'CRITICAL' ? '1–3 hours' : isLive ? '4–8 hours' : 'N/A – data unavailable',
-        criticalAlertsCount: isLive && (livePred?.risk_tier === 'CRITICAL' || livePred?.risk_tier === 'HIGH') ? 2 : 0,
+        criticalAlertsCount: 0, // Must come from real backend alerts — not fabricated from ML tier
         highRiskZonesCount: dynamicZones.length,
         blockedRoadsCount: isLive && livePred?.risk_tier === 'CRITICAL' ? 1 : 0,
         environmental: environmentalData,
@@ -637,7 +637,7 @@ export function App() {
               <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
                 <div className="lg:col-span-5">
                   <RainfallThresholdChart
-                    currentRainfall24h={districtData.environmental?.rainfall24h ?? 0}
+                    currentRainfall24h={districtData.environmental?.rainfall24h ?? null}
                     isSimulatedSurge={false}
                   />
                 </div>

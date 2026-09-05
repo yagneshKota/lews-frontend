@@ -38,7 +38,13 @@ export const SituationalSummary: React.FC<SituationalSummaryProps> = ({
   const riskInfo = getRiskColor(effectiveSeverity);
   const baseRainfall = district.environmental?.rainfall24h ?? null;
   const effectiveRainfall = isSimulatedSurge && baseRainfall !== null ? baseRainfall + 65 : baseRainfall;
-  const calculatedFoS = isSimulatedSurge ? 0.74 : (baseRisk !== null && baseRisk > 70 ? 1.08 : 1.42);
+  const calculatedFoS: number | null = isDataUnavailable
+    ? null
+    : isSimulatedSurge
+    ? 0.74
+    : baseRisk !== null && baseRisk > 70
+    ? 1.08
+    : 1.42;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -95,8 +101,16 @@ export const SituationalSummary: React.FC<SituationalSummaryProps> = ({
         </div>
 
         <div className="flex items-baseline gap-2 mt-1">
-          <span className={`text-3xl font-black font-mono ${calculatedFoS < 1.0 ? 'text-red-600 dark:text-red-400' : calculatedFoS < 1.25 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-            FoS {calculatedFoS.toFixed(2)}
+          <span className={`text-3xl font-black font-mono ${
+            calculatedFoS === null
+              ? 'text-slate-400 dark:text-slate-500'
+              : calculatedFoS < 1.0
+              ? 'text-red-600 dark:text-red-400'
+              : calculatedFoS < 1.25
+              ? 'text-amber-600 dark:text-amber-400'
+              : 'text-emerald-600 dark:text-emerald-400'
+          }`}>
+            {calculatedFoS === null ? 'N/A' : `FoS ${calculatedFoS.toFixed(2)}`}
           </span>
           <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-[#071711] text-slate-700 dark:text-slate-300">
             {district.highRiskZonesCount} High-Risk Slopes
@@ -104,7 +118,15 @@ export const SituationalSummary: React.FC<SituationalSummaryProps> = ({
         </div>
 
         <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-emerald-900/60 flex items-center justify-between text-[10.5px] text-slate-500 dark:text-slate-400">
-          <span>Slip Surface: <strong className={calculatedFoS < 1.0 ? 'text-red-600 dark:text-red-400 font-bold' : 'text-slate-900 dark:text-white'}>{calculatedFoS < 1.0 ? 'Shear Failure' : 'Marginal equilibrium'}</strong></span>
+          <span>Slip Surface: <strong className={
+            calculatedFoS === null
+              ? 'text-slate-500 dark:text-slate-400'
+              : calculatedFoS < 1.0
+              ? 'text-red-600 dark:text-red-400 font-bold'
+              : 'text-slate-900 dark:text-white'
+          }>
+            {calculatedFoS === null ? 'Live data required' : calculatedFoS < 1.0 ? 'Shear Failure' : 'Marginal equilibrium'}
+          </strong></span>
           <span className="text-emerald-700 dark:text-emerald-400 font-bold group-hover:underline">DEM Profile &rarr;</span>
         </div>
       </button>

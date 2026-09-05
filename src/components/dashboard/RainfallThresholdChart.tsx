@@ -1,5 +1,5 @@
 import React from 'react';
-import { CloudRain } from 'lucide-react';
+import { CloudRain, WifiOff } from 'lucide-react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 
 interface RainfallThresholdChartProps {
-  currentRainfall24h: number;
+  currentRainfall24h: number | null; // null when live telemetry unavailable
   isSimulatedSurge?: boolean;
 }
 
@@ -19,6 +19,39 @@ export const RainfallThresholdChart: React.FC<RainfallThresholdChartProps> = ({
   currentRainfall24h,
   isSimulatedSurge = false,
 }) => {
+  // If no live telemetry, show an explicit unavailable state
+  if (currentRainfall24h === null) {
+    return (
+      <div className="bg-white dark:bg-[#0b1f16] rounded-2xl border border-slate-300 dark:border-emerald-800/60 p-5 shadow-xs flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-emerald-900/60">
+          <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-900/60 text-slate-400 flex items-center justify-center">
+            <CloudRain className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-[13px] font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+              Rainfall I-D Threshold Curve (GSI Model)
+            </h3>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              Empirical Intensity-Duration landslide triggering envelope
+            </p>
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 py-10">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-900/60 flex items-center justify-center text-slate-400">
+            <WifiOff className="w-6 h-6" />
+          </div>
+          <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400 text-center">
+            Live rainfall data unavailable
+          </p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center max-w-[200px]">
+            I-D curve requires real-time Open-Meteo precipitation telemetry to plot
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const active24h = currentRainfall24h + (isSimulatedSurge ? 65 : 0);
 
   // Empirical GSI/LEWS I-D Threshold Curve Data: I = 18.5 * D^(-0.42)

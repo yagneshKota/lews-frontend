@@ -18,7 +18,7 @@ export interface EnvironmentalData {
   rainfall24h: number; // in mm
   soilMoisture: number; // in %
   temperature: number; // in °C
-  groundMovement: number; // in mm/hr
+  groundMovement: number | null; // in mm/hr — null when no IoT inclinometer data available
   humidity: number; // in %
   windSpeed: number; // in km/h
 }

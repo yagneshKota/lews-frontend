@@ -180,32 +180,8 @@ function runOfflineInference(features: MLFeatureInput): MLPredictionResult {
 }
 
 // ------------------------------------------------------------------------------
-// In-Memory Fallback Cache
+// (No in-memory mock fallback cache — real data or honest empty state only)
 // ------------------------------------------------------------------------------
-const localReports: IncidentReport[] = [
-  {
-    id: 'rep-init-01',
-    latitude: 27.5861,
-    longitude: 91.866,
-    report: 'Active Tension Crack Dilation',
-    report_description: 'Subsurface soil tensile cracks opened ~4cm across upper terrace near township road.',
-    created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-    risk_score: 0.87,
-    risk_tier: 'CRITICAL',
-    image_url: null,
-  },
-  {
-    id: 'rep-init-02',
-    latitude: 27.505,
-    longitude: 92.103,
-    report: 'Minor Rockfall Scree at Mountain Spur',
-    report_description: 'Intermittent loose boulders sliding across highway; BRO clearing team deployed.',
-    created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
-    risk_score: 0.91,
-    risk_tier: 'CRITICAL',
-    image_url: null,
-  },
-];
 
 // ------------------------------------------------------------------------------
 // API Service Methods
@@ -502,9 +478,9 @@ export const apiService = {
         }
       }
     } catch {
-      // Fallback
+      // Backend unavailable — return empty array; caller will show "no data" state
     }
-    return localReports;
+    return [];
   },
 
   /**
@@ -571,7 +547,7 @@ export const apiService = {
       if (imageFile) {
         newReport.image_url = URL.createObjectURL(imageFile);
       }
-      localReports.unshift(newReport);
+      // Note: backend unavailable — report is only stored locally in this session
     }
 
     return { success: true, report: newReport, prediction };
@@ -587,27 +563,10 @@ export const apiService = {
         return await response.json();
       }
     } catch {
-      // Fallback
+      // Backend unavailable — return empty array; caller will show "no alerts" state
     }
 
-    return [
-      {
-        id: 'alt-101',
-        report_id: 'rep-init-01',
-        severity: 'CRITICAL',
-        message: 'Critical landslide hazard: Heavy antecedent rainfall on unstable slope. Evacuate downhill slopes.',
-        status: 'DISPATCHED',
-        created_at: new Date(Date.now() - 1800000).toISOString(),
-      },
-      {
-        id: 'alt-102',
-        report_id: 'rep-init-02',
-        severity: 'HIGH',
-        message: 'Mountain Corridor: Scree movement blocking highway lane. Patrol team deployed.',
-        status: 'ACTIVE',
-        created_at: new Date(Date.now() - 7200000).toISOString(),
-      },
-    ];
+    return [];
   },
 
   /**

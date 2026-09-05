@@ -16,6 +16,7 @@ import {
   FileSpreadsheet,
   Camera,
   ArrowUpRight,
+  WifiOff,
 } from 'lucide-react';
 import type { Alert, FieldReport, TrendPoint } from '../../types/dashboard';
 import { getRiskColor } from '../../utils/riskUtils';
@@ -88,7 +89,17 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
 
         {/* Chart View Area */}
         <div className="h-56 w-full pt-3">
-          {activeChartTab === 'riskTrend' ? (
+          {trendData.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center gap-3 text-slate-400 dark:text-slate-500">
+              <WifiOff className="w-8 h-8" />
+              <p className="text-[12px] font-semibold text-center">
+                24h risk trend unavailable
+              </p>
+              <p className="text-[10px] text-center max-w-[200px]">
+                Live telemetry required to generate hourly risk trajectory
+              </p>
+            </div>
+          ) : activeChartTab === 'riskTrend' ? (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
                 <XAxis

@@ -36,8 +36,8 @@ export const EnvironmentalStrip: React.FC<EnvironmentalStripProps> = ({
   }
 
   const moisture = Math.min(100, data.soilMoisture + (isSimulatedSurge ? 20 : 0));
-  const movement = isSimulatedSurge ? 4.8 : data.groundMovement;
   const porePressureKpa = Math.round(18 + (moisture / 100) * 42);
+  // Note: groundMovement is null (no IoT inclinometer) — shown as "No Sensor" in UI
 
   return (
     <div className="bg-white dark:bg-[#0b1f16] rounded-2xl border border-slate-200 dark:border-emerald-800/60 p-3 shadow-xs transition-colors">
@@ -72,32 +72,32 @@ export const EnvironmentalStrip: React.FC<EnvironmentalStripProps> = ({
           </div>
         </div>
 
-        {/* 2. Borehole Inclinometer Drift */}
+        {/* 2. Borehole Inclinometer — No IoT sensor data available */}
         <div className="flex items-center gap-2.5 px-3 border-r border-slate-100 dark:border-emerald-900/50 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/70 border border-orange-200 dark:border-orange-800 flex items-center justify-center text-orange-600 dark:text-orange-400">
+          <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400">
             <Activity className="w-4 h-4" />
           </div>
           <div>
             <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 leading-tight">
               Inclinometer Shear Rate
             </p>
-            <p className="text-[13px] font-extrabold text-slate-900 dark:text-white leading-tight font-mono">
-              {movement} mm/hr <span className={`text-[10px] font-bold ${movement > 2 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>Drift</span>
+            <p className="text-[13px] font-extrabold text-slate-500 dark:text-slate-400 leading-tight font-mono">
+              No Sensor <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">Offline</span>
             </p>
           </div>
         </div>
 
-        {/* 3. InSAR Satellite Displacement */}
+        {/* 3. InSAR Satellite Displacement — static reference only, not live telemetry */}
         <div className="flex items-center gap-2.5 px-3 border-r border-slate-100 dark:border-emerald-900/50 shrink-0 hidden sm:flex">
-          <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-700 dark:text-emerald-400">
+          <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400">
             <Satellite className="w-4 h-4" />
           </div>
           <div>
             <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 leading-tight">
-              InSAR Satellite LOS Velocity
+              InSAR Satellite LOS
             </p>
-            <p className="text-[13px] font-extrabold text-slate-900 dark:text-white leading-tight font-mono">
-              -4.8 mm/yr <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold">Line-of-Sight</span>
+            <p className="text-[13px] font-extrabold text-slate-500 dark:text-slate-400 leading-tight font-mono">
+              No Data <span className="text-[10px] text-slate-400 dark:text-slate-500">Unavailable</span>
             </p>
           </div>
         </div>
