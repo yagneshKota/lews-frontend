@@ -23,7 +23,7 @@ import {
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import type { NortheastLocation } from '../../data/northeastLocations';
-import { apiService, type MLPredictionResult, type MLFeatureInput } from '../../services/api';
+import { apiService, type MLPredictionResult, type MLFeatureInput, type LiveRiskData } from '../../services/api';
 
 const citizenShelterIcon = L.divIcon({
   className: 'citizen-marker',
@@ -41,6 +41,10 @@ const citizenHazardIcon = L.divIcon({
 
 interface CitizenPortalViewProps {
   location: NortheastLocation;
+  /** Live risk data fetched by App.tsx — eliminates duplicate getLiveRisk() call */
+  liveRiskData?: LiveRiskData | null;
+  /** Whether App.tsx is currently fetching live risk */
+  riskLoading?: boolean;
   onOpenGisMap: () => void;
   onOpenRoads: () => void;
   onShowToast: (msg: string) => void;
@@ -49,6 +53,8 @@ interface CitizenPortalViewProps {
 
 export const CitizenPortalView: React.FC<CitizenPortalViewProps> = ({
   location,
+  liveRiskData,
+  riskLoading: _riskLoading = false,
   onOpenGisMap,
   onOpenRoads,
   onShowToast,
@@ -68,6 +74,7 @@ export const CitizenPortalView: React.FC<CitizenPortalViewProps> = ({
   const [isAcquiringGps, setIsAcquiringGps] = useState(false);
 
   // Live Real-Time Open-Meteo & Open GIS Telemetry state
+  // Initial state is null — shown as loading until liveRiskData prop arrives or GPS fetch completes
   const [liveTelemetry, setLiveTelemetry] = useState<{
     source: string;
     rainfall_24h: number;
@@ -79,46 +86,65 @@ export const CitizenPortalView: React.FC<CitizenPortalViewProps> = ({
     wind_speed: number;
     elevation_m: number;
     slope_degrees: number;
-  }>({
-    source: 'Open-Meteo Free API & Open GIS',
-    rainfall_24h: location.rainfall_24h,
-    rainfall_3d: location.rainfall_3d,
-    rainfall_7d: location.rainfall_7d,
-    soil_moisture: location.soil_moisture,
-    temperature: 18,
-    humidity: 82,
-    wind_speed: 14,
-    elevation_m: location.elevation_m,
-    slope_degrees: location.slope_degrees,
-  });
+  } | null>(null);
 
   // Live ML Prediction state
   const [livePrediction, setLivePrediction] = useState<MLPredictionResult | null>(null);
   const [isCalculatingML, setIsCalculatingML] = useState(false);
 
   // Live ML Feature state
-  const [liveFeatures, setLiveFeatures] = useState<MLFeatureInput>({
-    elevation_m: location.elevation_m,
-    slope_degrees: location.slope_degrees,
-    aspect_degrees: location.aspect_degrees || 135,
-    rainfall_1d_before: location.rainfall_24h,
-    rainfall_3d_before: location.rainfall_3d,
-    rainfall_7d_before: location.rainfall_7d,
-    rainfall_14d_before: location.rainfall_7d * 1.5,
-    rainfall_30d_before: location.rainfall_7d * 2.5,
-    rainfall_7d_max1d: location.rainfall_24h,
-    rainfall_3d_over_7d_ratio: +(location.rainfall_3d / Math.max(1, location.rainfall_7d)).toFixed(2),
-    soil_moisture: location.soil_moisture,
-    soil_moisture_available: 1,
-  });
+  const [liveFeatures, setLiveFeatures] = useState<MLFeatureInput | null>(null);
 
-  // Fetch real-time Open-Meteo & Open GIS telemetry, then run ML prediction for landslide detection
+  // 1. When liveRiskData prop changes (from App.tsx authoritative fetch), update local state.
+  //    This eliminates the duplicate independent getLiveRisk() call for non-GPS mode.
   useEffect(() => {
+    if (!liveRiskData || liveGpsCoords !== null) return; // GPS mode handles its own fetch below
+
+    const env = liveRiskData.environmental;
+    const feat = liveRiskData.features;
+    const pred = liveRiskData.prediction;
+
+    if (feat) setLiveFeatures(feat as MLFeatureInput);
+
+    if (env) {
+      setLiveTelemetry({
+        source: liveRiskData.data_sources?.weather || 'Open-Meteo Free API & Open GIS',
+        rainfall_24h: env.rainfall_24h,
+        rainfall_3d: env.rainfall_3d,
+        rainfall_7d: env.rainfall_7d,
+        soil_moisture: env.soil_moisture,
+        temperature: env.temperature,
+        humidity: env.humidity,
+        wind_speed: env.wind_speed,
+        elevation_m: env.elevation_m,
+        slope_degrees: env.slope_degrees,
+      });
+    }
+
+    if (pred) {
+      setLivePrediction({
+        risk_score: pred.risk_score,
+        risk_level: pred.risk_level,
+        risk_tier: pred.risk_tier,
+        alert_triggered: pred.alert_triggered,
+        alert_message: pred.alert_message,
+        source: 'live_ml_backend',
+      });
+    } else {
+      setLivePrediction(null);
+    }
+  }, [liveRiskData, liveGpsCoords]);
+
+  // 2. GPS override: when the user pins their own GPS location, fetch live risk
+  //    specifically for those coordinates (independent of location prop).
+  useEffect(() => {
+    if (!liveGpsCoords) return;
+
     let isMounted = true;
     setIsCalculatingML(true);
     setHazardLocation(`${location.name}, ${location.district}`);
 
-    const [lat, lng] = liveGpsCoords || location.coordinates;
+    const [lat, lng] = liveGpsCoords;
 
     apiService.getLiveRisk(lat, lng).then((liveRisk) => {
       if (!isMounted) return;
@@ -127,9 +153,7 @@ export const CitizenPortalView: React.FC<CitizenPortalViewProps> = ({
       const feat = liveRisk.features;
       const pred = liveRisk.prediction;
 
-      if (feat) {
-        setLiveFeatures(feat);
-      }
+      if (feat) setLiveFeatures(feat as MLFeatureInput);
 
       if (env) {
         setLiveTelemetry({
@@ -164,10 +188,8 @@ export const CitizenPortalView: React.FC<CitizenPortalViewProps> = ({
       if (isMounted) setIsCalculatingML(false);
     });
 
-    return () => {
-      isMounted = false;
-    };
-  }, [location, liveGpsCoords]);
+    return () => { isMounted = false; };
+  }, [liveGpsCoords, location]);
 
   // Trigger Citizen SOS
   const handleTriggerSos = () => {
@@ -206,7 +228,7 @@ export const CitizenPortalView: React.FC<CitizenPortalViewProps> = ({
           longitude: (liveGpsCoords ? liveGpsCoords[1] : location.coordinates[1]),
           report: `${hazardType} at ${hazardLocation}`,
           report_description: hazardNotes,
-          features: liveFeatures,
+          features: liveFeatures ?? undefined,
         },
         selectedImage
       );
@@ -326,77 +348,90 @@ export const CitizenPortalView: React.FC<CitizenPortalViewProps> = ({
       </div>
 
       {/* 2. Detailed Rainfall & Soil Moisture Telemetry Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {/* 24h Rainfall */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-[#0c2219] border border-slate-200 dark:border-emerald-800/50 shadow-xs dark:shadow-md">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
-            <span className="font-semibold">24h Rainfall</span>
-            <CloudRain className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+      {liveTelemetry ? (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {/* 24h Rainfall */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#0c2219] border border-slate-200 dark:border-emerald-800/50 shadow-xs dark:shadow-md">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+              <span className="font-semibold">24h Rainfall</span>
+              <CloudRain className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+            </div>
+            <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
+              {liveTelemetry.rainfall_24h} mm
+            </div>
+            <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 font-semibold">
+              {liveTelemetry.rainfall_24h > 70 ? '⚠️ Heavy Precipitation' : 'Open-Meteo Live'}
+            </div>
           </div>
-          <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
-            {liveTelemetry.rainfall_24h} mm
-          </div>
-          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 font-semibold">
-            {liveTelemetry.rainfall_24h > 70 ? '⚠️ Heavy Precipitation' : 'Open-Meteo Live'}
-          </div>
-        </div>
 
-        {/* 3-Day Cumulative */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-[#0c2219] border border-slate-200 dark:border-emerald-800/50 shadow-xs dark:shadow-md">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
-            <span className="font-semibold">3-Day Rainfall</span>
-            <CloudRain className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+          {/* 3-Day Cumulative */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#0c2219] border border-slate-200 dark:border-emerald-800/50 shadow-xs dark:shadow-md">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+              <span className="font-semibold">3-Day Rainfall</span>
+              <CloudRain className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+            </div>
+            <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
+              {liveTelemetry.rainfall_3d} mm
+            </div>
+            <div className="text-[10px] text-teal-600 dark:text-teal-400 font-mono mt-0.5 font-semibold">
+              Antecedent Hydrology
+            </div>
           </div>
-          <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
-            {liveTelemetry.rainfall_3d} mm
-          </div>
-          <div className="text-[10px] text-teal-600 dark:text-teal-400 font-mono mt-0.5 font-semibold">
-            Antecedent Hydrology
-          </div>
-        </div>
 
-        {/* 7-Day Cumulative */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-[#0c2219] border border-slate-200 dark:border-emerald-800/50 shadow-xs dark:shadow-md">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
-            <span className="font-semibold">7-Day Rainfall</span>
-            <CloudRain className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+          {/* 7-Day Cumulative */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#0c2219] border border-slate-200 dark:border-emerald-800/50 shadow-xs dark:shadow-md">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+              <span className="font-semibold">7-Day Rainfall</span>
+              <CloudRain className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+            </div>
+            <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
+              {liveTelemetry.rainfall_7d} mm
+            </div>
+            <div className="text-[10px] text-cyan-600 dark:text-cyan-400 font-mono mt-0.5 font-semibold">
+              Catchment Saturation
+            </div>
           </div>
-          <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
-            {liveTelemetry.rainfall_7d} mm
-          </div>
-          <div className="text-[10px] text-cyan-600 dark:text-cyan-400 font-mono mt-0.5 font-semibold">
-            Catchment Saturation
-          </div>
-        </div>
 
-        {/* Soil Moisture */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-[#0c2219] border border-slate-200 dark:border-emerald-800/50 shadow-xs dark:shadow-md">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
-            <span className="font-semibold">Soil Moisture</span>
-            <Droplets className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          {/* Soil Moisture */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#0c2219] border border-slate-200 dark:border-emerald-800/50 shadow-xs dark:shadow-md">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+              <span className="font-semibold">Soil Moisture</span>
+              <Droplets className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
+              {Math.round(liveTelemetry.soil_moisture * 100)}%
+            </div>
+            <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 font-semibold">
+              Pore Saturation
+            </div>
           </div>
-          <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
-            {Math.round(liveTelemetry.soil_moisture * 100)}%
-          </div>
-          <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 font-semibold">
-            Pore Saturation
-          </div>
-        </div>
 
-        {/* Slope Incline & Altitude */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-[#0c2219] border border-slate-200 dark:border-emerald-800/50 shadow-xs dark:shadow-md col-span-2 md:col-span-1">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
-            <span className="font-semibold">Terrain Slope</span>
-            <Mountain className="w-4 h-4 text-amber-500 dark:text-amber-400" />
-          </div>
-          <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
-            {liveTelemetry.slope_degrees}° <span className="text-xs font-normal text-slate-500 dark:text-slate-400">({liveTelemetry.elevation_m}m)</span>
-          </div>
-          <div className="text-[10px] text-amber-600 dark:text-amber-400 font-mono mt-0.5 font-semibold">
-            {liveTelemetry.slope_degrees >= 35 ? 'Critical High Incline' : 'Open GIS Slope'}
+          {/* Slope Incline & Altitude */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#0c2219] border border-slate-200 dark:border-emerald-800/50 shadow-xs dark:shadow-md col-span-2 md:col-span-1">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs mb-1">
+              <span className="font-semibold">Terrain Slope</span>
+              <Mountain className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+            </div>
+            <div className="text-xl font-black text-slate-900 dark:text-white font-mono">
+              {liveTelemetry.slope_degrees}° <span className="text-xs font-normal text-slate-500 dark:text-slate-400">({liveTelemetry.elevation_m}m)</span>
+            </div>
+            <div className="text-[10px] text-amber-600 dark:text-amber-400 font-mono mt-0.5 font-semibold">
+              {liveTelemetry.slope_degrees >= 35 ? 'Critical High Incline' : 'Open GIS Slope'}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        /* Loading skeleton — shown until liveRiskData prop arrives from App.tsx */
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="p-4 rounded-2xl bg-white dark:bg-[#0c2219] border border-slate-200 dark:border-emerald-800/50 shadow-xs dark:shadow-md animate-pulse">
+              <div className="h-3 w-24 bg-slate-200 dark:bg-slate-700 rounded mb-3" />
+              <div className="h-6 w-16 bg-slate-300 dark:bg-slate-600 rounded mb-2" />
+              <div className="h-2.5 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 3. Main Body: Community Field Reporter + Safety Guidance */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { TopHeader } from './components/layout/TopHeader';
 import { SituationalSummary } from './components/dashboard/SituationalSummary';
@@ -53,6 +53,12 @@ export function App() {
 
   // Live ML Prediction State
   const [currentMLPrediction, setCurrentMLPrediction] = useState<MLPredictionResult | null>(null);
+
+  // Live risk data state — shared with CitizenPortalView to avoid duplicate API calls
+  const [liveRiskData, setLiveRiskData] = useState<import('./services/api').LiveRiskData | null>(null);
+
+  // AbortController ref — cancels stale in-flight requests when location changes rapidly
+  const liveRiskAbortRef = useRef<AbortController | null>(null);
 
   // Selected Risk Zone (for Map & Detail Panel)
   const [selectedZone, setSelectedZone] = useState<RiskZone | null>(null);
@@ -124,11 +130,25 @@ export function App() {
     try {
       const [lat, lng] = selectedLocation.coordinates;
 
+      // Cancel any previous in-flight live risk request for a prior location
+      liveRiskAbortRef.current?.abort();
+      const abortController = new AbortController();
+      liveRiskAbortRef.current = abortController;
+
       // 1. Fetch backend database field reports in parallel with live risk
       const dbReportsPromise = loadDatabaseReports();
 
       // 2. Fetch live real-time Open-Meteo & Copernicus DEM telemetry + ML Risk Inference
+      //    Note: getLiveRisk already handles client-side in-flight dedup.
       const liveRisk = await apiService.getLiveRisk(lat, lng);
+
+      // Guard: if location changed again while request was in-flight, discard this result
+      if (abortController.signal.aborted) {
+        console.debug('[App] Discarding stale live risk result for', lat, lng);
+        return;
+      }
+
+      setLiveRiskData(liveRisk);
       const liveEnv = liveRisk.environmental;
       const livePred = liveRisk.prediction;
       const isLive = liveRisk.data_status === 'LIVE' && livePred != null && liveEnv != null;
@@ -496,6 +516,8 @@ export function App() {
           {currentUser.role === 'citizen' ? (
             <CitizenPortalView
               location={selectedLocation}
+              liveRiskData={liveRiskData}
+              riskLoading={loading}
               onOpenGisMap={() => setIsZonesDrawerOpen(true)}
               onOpenRoads={() => setIsRoadsDrawerOpen(true)}
               onShowToast={showToast}

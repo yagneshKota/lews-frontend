@@ -184,6 +184,27 @@ function runOfflineInference(features: MLFeatureInput): MLPredictionResult {
 // ------------------------------------------------------------------------------
 
 // ------------------------------------------------------------------------------
+// Client-side in-flight deduplication for getLiveRisk.
+// If a fetch for the same rounded coordinate is already in-flight, return the
+// existing Promise instead of creating a second backend request.
+// ------------------------------------------------------------------------------
+const _liveRiskInFlight = new Map<string, Promise<LiveRiskData>>();
+
+function _liveRiskUnavailable(lat: number, lng: number, message: string): LiveRiskData {
+  return {
+    location: { latitude: lat, longitude: lng },
+    features: null,
+    prediction: null,
+    environmental: null,
+    data_sources: {},
+    data_timestamp: new Date().toISOString(),
+    data_age_seconds: 0,
+    data_status: 'UNAVAILABLE',
+    message,
+  };
+}
+
+// ------------------------------------------------------------------------------
 // API Service Methods
 // ------------------------------------------------------------------------------
 
@@ -202,49 +223,58 @@ export const apiService = {
   },
 
   /**
-   * Core Unified Live Risk Method:
-   * Given arbitrary coordinates [lat, lng], fetches real-time Open-Meteo & Open GIS telemetry,
-   * calculates the exact 12 ML features, runs the trained ML model on the backend, and returns the live result.
-   * If telemetry or backend is unavailable, fails safely with data_status: 'UNAVAILABLE'.
+   * Core Unified Live Risk Method.
+   * Client-side in-flight deduplication: concurrent calls for the same
+   * coordinate share one backend request instead of firing multiple fetches.
+   * If backend returns rate-limit (missing_source: open-meteo), surfaces
+   * an explicit UNAVAILABLE with rate-limit message.
    */
-  async getLiveRisk(lat: number, lng: number): Promise<LiveRiskData> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000);
+  getLiveRisk(lat: number, lng: number): Promise<LiveRiskData> {
+    // Round to 3 decimal places (~100m precision) as dedup key
+    const key = `${lat.toFixed(3)}_${lng.toFixed(3)}`;
 
-      const res = await fetch(`${API_BASE_URL}/api/risk/live?lat=${lat}&lng=${lng}`, {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      const data = await res.json();
-      if (res.ok && data.data_status === 'LIVE') {
-        return data;
-      }
-      return {
-        location: { latitude: lat, longitude: lng },
-        features: null,
-        prediction: null,
-        environmental: null,
-        data_sources: {},
-        data_timestamp: new Date().toISOString(),
-        data_age_seconds: 0,
-        data_status: 'UNAVAILABLE',
-        message: data.message || 'Live risk assessment temporarily unavailable from external telemetry providers.',
-      };
-    } catch {
-      return {
-        location: { latitude: lat, longitude: lng },
-        features: null,
-        prediction: null,
-        environmental: null,
-        data_sources: {},
-        data_timestamp: new Date().toISOString(),
-        data_age_seconds: 0,
-        data_status: 'UNAVAILABLE',
-        message: 'Live risk assessment temporarily unavailable. Check network connectivity or telemetry providers.',
-      };
+    if (_liveRiskInFlight.has(key)) {
+      console.debug(`[LiveRisk] Dedup: returning existing in-flight request for ${key}`);
+      return _liveRiskInFlight.get(key)!;
     }
+
+    const promise: Promise<LiveRiskData> = (async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        const res = await fetch(`${API_BASE_URL}/api/risk/live?lat=${lat}&lng=${lng}`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        const data = await res.json();
+
+        if (data.data_status === 'LIVE') {
+          return data as LiveRiskData;
+        }
+
+        // Surface rate-limit message specifically
+        const isRateLimited = data.missing_source === 'open-meteo';
+        const message = isRateLimited
+          ? 'Live weather service temporarily rate-limited. Please wait ~60 seconds before retrying.'
+          : (data.message || 'Live risk assessment temporarily unavailable.');
+
+        return _liveRiskUnavailable(lat, lng, message);
+      } catch (err: unknown) {
+        const isAbort = err instanceof DOMException && err.name === 'AbortError';
+        return _liveRiskUnavailable(
+          lat, lng,
+          isAbort
+            ? 'Live risk request timed out. Check network connectivity.'
+            : 'Live risk assessment temporarily unavailable. Check network connectivity.',
+        );
+      }
+    })();
+
+    _liveRiskInFlight.set(key, promise);
+    promise.finally(() => _liveRiskInFlight.delete(key));
+    return promise;
   },
 
   /**
