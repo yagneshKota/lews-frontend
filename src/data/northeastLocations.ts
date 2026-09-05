@@ -9,7 +9,8 @@ export interface NortheastLocation {
     | 'Nagaland'
     | 'Manipur'
     | 'Mizoram'
-    | 'Tripura';
+    | 'Tripura'
+    | string;
   district: string;
   coordinates: [number, number]; // [lat, lng]
   elevation_m: number;

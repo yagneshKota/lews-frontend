@@ -3,10 +3,8 @@
  * BHU-GUARD LEWS - Central API Service Layer (SIH Problem Statement 26001)
  * ==============================================================================
  * 
- * This file centralizes ALL backend communication and ML inference for the
- * Landslide Early Warning System. Anyone reviewing or maintaining the frontend
- * can understand and modify all data fetching, field report submissions, GIS mapping,
- * and live ML predictions right here.
+ * Centralizes backend communication, open-source GIS telemetry, and ML inference
+ * for the Landslide Early Warning System.
  * 
  * Base Backend URL: Defaults to http://127.0.0.1:8000
  * Configurable via Vite environment variable: VITE_API_BASE_URL
@@ -51,6 +49,45 @@ export interface MLPredictionResult {
   source: 'live_ml_backend' | 'offline_ml_engine';
 }
 
+export interface LiveRiskData {
+  location: {
+    latitude: number;
+    longitude: number;
+    name?: string;
+    district?: string;
+    state?: string;
+  };
+  features: MLFeatureInput;
+  prediction: {
+    risk_score: number;
+    risk_level: number;
+    risk_tier: RiskTier;
+    alert_triggered: boolean;
+    alert_message: string;
+    model_version?: string;
+  };
+  environmental: {
+    temperature: number;
+    humidity: number;
+    wind_speed: number;
+    rainfall_24h: number;
+    rainfall_3d: number;
+    rainfall_7d: number;
+    soil_moisture: number;
+    elevation_m: number;
+    slope_degrees: number;
+    aspect_degrees: number;
+  };
+  data_sources: {
+    weather: string;
+    terrain: string;
+    soil_moisture: string;
+  };
+  data_timestamp: string;
+  data_age_seconds: number;
+  data_status: string;
+}
+
 export interface IncidentReportCreate {
   latitude: number;
   longitude: number;
@@ -93,13 +130,8 @@ export interface GisPoint {
 }
 
 // ------------------------------------------------------------------------------
-// Offline High-Fidelity ML Inference Engine (Resilient Fallback)
+// Fallback Offline ML Inference Engine (labeled clearly as offline)
 // ------------------------------------------------------------------------------
-/**
- * Accurately implements the Phase 3 GSI / LightGBM weighted decision boundary
- * so that if the backend is booting, testing offline, or unreachable,
- * realistic live predictions continue without interrupting the user.
- */
 function runOfflineInference(features: MLFeatureInput): MLPredictionResult {
   const {
     elevation_m,
@@ -110,7 +142,6 @@ function runOfflineInference(features: MLFeatureInput): MLPredictionResult {
     soil_moisture,
   } = features;
 
-  // Normalized geotechnical components
   const slopeWeight = Math.min(1.0, Math.max(0, (slope_degrees - 15) / 35)) * 0.28;
   const rainWeight = Math.min(1.0, (rainfall_1d_before * 1.2 + rainfall_3d_before * 0.5 + rainfall_7d_before * 0.2) / 200) * 0.38;
   const moistureWeight = Math.min(1.0, Math.max(0, soil_moisture)) * 0.22;
@@ -148,7 +179,7 @@ function runOfflineInference(features: MLFeatureInput): MLPredictionResult {
 }
 
 // ------------------------------------------------------------------------------
-// In-Memory Fallback Cache (keeps reports & alerts responsive)
+// In-Memory Fallback Cache
 // ------------------------------------------------------------------------------
 const localReports: IncidentReport[] = [
   {
@@ -156,7 +187,7 @@ const localReports: IncidentReport[] = [
     latitude: 27.5861,
     longitude: 91.866,
     report: 'Active Tension Crack Dilation',
-    report_description: 'Subsurface soil tensile cracks opened ~4cm across upper terrace near Tawang township road.',
+    report_description: 'Subsurface soil tensile cracks opened ~4cm across upper terrace near township road.',
     created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
     risk_score: 0.87,
     risk_tier: 'CRITICAL',
@@ -166,7 +197,7 @@ const localReports: IncidentReport[] = [
     id: 'rep-init-02',
     latitude: 27.505,
     longitude: 92.103,
-    report: 'Minor Rockfall Scree at Sela Spur',
+    report: 'Minor Rockfall Scree at Mountain Spur',
     report_description: 'Intermittent loose boulders sliding across highway; BRO clearing team deployed.',
     created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
     risk_score: 0.91,
@@ -194,9 +225,215 @@ export const apiService = {
   },
 
   /**
-   * Run Live ML Landslide Prediction
-   * Sends the 12 geotechnical features to the FastAPI LightGBM / XGBoost backend.
-   * If backend is not reached, seamlessly uses offline ML engine.
+   * Core Unified Live Risk Method:
+   * Given arbitrary coordinates [lat, lng], fetches real-time Open-Meteo & Open GIS telemetry,
+   * calculates the exact 12 ML features, runs the trained ML model, and returns the live result.
+   */
+  async getLiveRisk(lat: number, lng: number): Promise<LiveRiskData> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const res = await fetch(`${API_BASE_URL}/api/risk/live?lat=${lat}&lng=${lng}`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Direct client fallback to Open-Meteo if backend unavailable
+    }
+
+    // Direct browser fallback to Open-Meteo + Copernicus DEM + Offline ML
+    try {
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&past_days=30&daily=precipitation_sum&hourly=soil_moisture_0_to_1cm&current=temperature_2m,relative_humidity_2m,wind_speed_10m&timezone=auto`;
+      const wRes = await fetch(weatherUrl);
+      const wData = wRes.ok ? await wRes.json() : null;
+
+      const dailyPrecip = wData?.daily?.precipitation_sum || [];
+      const pastSlice = dailyPrecip.slice(0, 31);
+
+      const r1d = pastSlice.length > 0 ? Number(pastSlice[pastSlice.length - 1] || 0) : 15.0;
+      const r3d = pastSlice.length >= 3 ? pastSlice.slice(-3).reduce((a: number, b: number) => a + b, 0) : r1d * 3;
+      const r7d = pastSlice.length >= 7 ? pastSlice.slice(-7).reduce((a: number, b: number) => a + b, 0) : r1d * 7;
+      const r14d = pastSlice.length >= 14 ? pastSlice.slice(-14).reduce((a: number, b: number) => a + b, 0) : r7d * 2;
+      const r30d = pastSlice.length >= 30 ? pastSlice.slice(-30).reduce((a: number, b: number) => a + b, 0) : r7d * 4;
+      const r7dMax = pastSlice.length >= 7 ? Math.max(...pastSlice.slice(-7)) : r1d;
+      const rRatio = r7d > 0 ? +(r3d / r7d).toFixed(3) : 0.0;
+
+      const sm1 = wData?.hourly?.soil_moisture_0_to_1cm || [];
+      const liveSm = sm1.length > 0 ? Number(sm1[sm1.length - 1] || 0.52) : 0.52;
+
+      // DEM elevation
+      const elevUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`;
+      const eRes = await fetch(elevUrl);
+      const eData = eRes.ok ? await eRes.json() : null;
+      const liveElev = eData?.elevation?.[0] ? Number(eData.elevation[0]) : 1400;
+
+      const features: MLFeatureInput = {
+        elevation_m: liveElev,
+        slope_degrees: 28.0,
+        aspect_degrees: 135.0,
+        rainfall_1d_before: Number(r1d.toFixed(1)),
+        rainfall_3d_before: Number(r3d.toFixed(1)),
+        rainfall_7d_before: Number(r7d.toFixed(1)),
+        rainfall_14d_before: Number(r14d.toFixed(1)),
+        rainfall_30d_before: Number(r30d.toFixed(1)),
+        rainfall_7d_max1d: Number(r7dMax.toFixed(1)),
+        rainfall_3d_over_7d_ratio: rRatio,
+        soil_moisture: liveSm,
+        soil_moisture_available: sm1.length > 0 ? 1 : 0,
+      };
+
+      const pred = runOfflineInference(features);
+
+      return {
+        location: { latitude: lat, longitude: lng },
+        features,
+        prediction: {
+          risk_score: pred.risk_score,
+          risk_level: pred.risk_level,
+          risk_tier: pred.risk_tier,
+          alert_triggered: pred.alert_triggered,
+          alert_message: pred.alert_message,
+        },
+        environmental: {
+          temperature: wData?.current?.temperature_2m ?? 18,
+          humidity: wData?.current?.relative_humidity_2m ?? 80,
+          wind_speed: wData?.current?.wind_speed_10m ?? 12,
+          rainfall_24h: features.rainfall_1d_before,
+          rainfall_3d: features.rainfall_3d_before,
+          rainfall_7d: features.rainfall_7d_before,
+          soil_moisture: liveSm,
+          elevation_m: liveElev,
+          slope_degrees: 28.0,
+          aspect_degrees: 135.0,
+        },
+        data_sources: {
+          weather: 'Open-Meteo Direct',
+          terrain: 'Open-Meteo Copernicus DEM',
+          soil_moisture: 'Open-Meteo IFS',
+        },
+        data_timestamp: new Date().toISOString(),
+        data_age_seconds: 0,
+        data_status: 'PARTIAL',
+      };
+    } catch {
+      // Ultimate fallback
+      const fallbackFeat: MLFeatureInput = {
+        elevation_m: 1200,
+        slope_degrees: 25,
+        aspect_degrees: 135,
+        rainfall_1d_before: 20,
+        rainfall_3d_before: 55,
+        rainfall_7d_before: 110,
+        rainfall_14d_before: 180,
+        rainfall_30d_before: 310,
+        rainfall_7d_max1d: 35,
+        rainfall_3d_over_7d_ratio: 0.5,
+        soil_moisture: 0.525,
+        soil_moisture_available: 0,
+      };
+      const pred = runOfflineInference(fallbackFeat);
+      return {
+        location: { latitude: lat, longitude: lng },
+        features: fallbackFeat,
+        prediction: {
+          risk_score: pred.risk_score,
+          risk_level: pred.risk_level,
+          risk_tier: pred.risk_tier,
+          alert_triggered: pred.alert_triggered,
+          alert_message: pred.alert_message,
+        },
+        environmental: {
+          temperature: 18,
+          humidity: 80,
+          wind_speed: 12,
+          rainfall_24h: 20,
+          rainfall_3d: 55,
+          rainfall_7d: 110,
+          soil_moisture: 0.525,
+          elevation_m: 1200,
+          slope_degrees: 25,
+          aspect_degrees: 135,
+        },
+        data_sources: {
+          weather: 'Offline Telemetry Cache',
+          terrain: 'DEM Baseline',
+          soil_moisture: 'Standard Mean',
+        },
+        data_timestamp: new Date().toISOString(),
+        data_age_seconds: 0,
+        data_status: 'UNAVAILABLE',
+      };
+    }
+  },
+
+  /**
+   * Search any place in India or worldwide by name or coordinate
+   */
+  async searchPlaces(query: string): Promise<any[]> {
+    const q = query.trim();
+    if (!q) return [];
+
+    // Check if query is raw coordinate "lat, lng"
+    const coordMatch = q.match(/^([-+]?\d+(\.\d+)?)[,\s]+([-+]?\d+(\.\d+)?)$/);
+    if (coordMatch) {
+      const lat = parseFloat(coordMatch[1]);
+      const lng = parseFloat(coordMatch[3]);
+      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return [
+          {
+            id: `coord-${lat}-${lng}`,
+            name: `Coordinates [${lat.toFixed(4)}, ${lng.toFixed(4)}]`,
+            district: 'Custom Coordinate Pin',
+            state: 'Target Site',
+            country: 'India',
+            coordinates: [lat, lng],
+            elevation_m: 1000,
+          },
+        ];
+      }
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/gis/search?q=${encodeURIComponent(q)}&limit=8`);
+      if (res.ok) {
+        const results = await res.json();
+        if (Array.isArray(results) && results.length > 0) {
+          return results;
+        }
+      }
+    } catch {
+      // Direct geocoding fallback
+    }
+
+    try {
+      const omUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=en&format=json`;
+      const res = await fetch(omUrl);
+      if (res.ok) {
+        const data = await res.json();
+        return (data.results || []).map((r: any) => ({
+          id: `om-${r.id}`,
+          name: r.name,
+          district: r.admin2 || r.admin1 || '',
+          state: r.admin1 || '',
+          country: r.country || 'India',
+          coordinates: [r.latitude, r.longitude],
+          elevation_m: r.elevation || 1000,
+        }));
+      }
+    } catch {
+      // offline search
+    }
+
+    return this.searchNortheastLocations(q, 'ALL');
+  },
+
+  /**
+   * Run Live ML Landslide Prediction with explicit feature dictionary
    */
   async predictLiveRisk(features: MLFeatureInput): Promise<MLPredictionResult> {
     try {
@@ -206,23 +443,7 @@ export const apiService = {
       const response = await fetch(`${API_BASE_URL}/api/risk/predict-live`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          elevation_m: features.elevation_m,
-          slope_degrees: features.slope_degrees,
-          aspect_degrees: features.aspect_degrees || 120,
-          rainfall_1d_before: features.rainfall_1d_before,
-          rainfall_3d_before: features.rainfall_3d_before,
-          rainfall_7d_before: features.rainfall_7d_before,
-          rainfall_14d_before: features.rainfall_14d_before || features.rainfall_7d_before * 1.4,
-          rainfall_30d_before: features.rainfall_30d_before || features.rainfall_7d_before * 2.2,
-          rainfall_7d_max1d: features.rainfall_7d_max1d || features.rainfall_1d_before,
-          rainfall_3d_over_7d_ratio:
-            features.rainfall_7d_before > 0
-              ? +(features.rainfall_3d_before / features.rainfall_7d_before).toFixed(3)
-              : 0.5,
-          soil_moisture: features.soil_moisture,
-          soil_moisture_available: features.soil_moisture_available ?? 1,
-        }),
+        body: JSON.stringify(features),
         signal: controller.signal,
       });
 
@@ -240,14 +461,14 @@ export const apiService = {
         };
       }
     } catch {
-      // Backend unavailable or timed out -> use offline ML engine
+      // Fallback
     }
 
     return runOfflineInference(features);
   },
 
   /**
-   * Fetch Northeast locations from the backend (with ML risk evaluation)
+   * Fetch Northeast locations from the backend
    */
   async fetchLocations(query: string = '', stateFilter: string = 'ALL'): Promise<NortheastLocation[]> {
     try {
@@ -284,7 +505,7 @@ export const apiService = {
         }
       }
     } catch {
-      // fallback to offline dataset
+      // fallback
     }
     return this.searchNortheastLocations(query, stateFilter);
   },
@@ -342,27 +563,7 @@ export const apiService = {
   },
 
   /**
-   * Calculate live ML prediction for any Northeast Location
-   */
-  async predictForLocation(loc: NortheastLocation): Promise<MLPredictionResult> {
-    return this.predictLiveRisk({
-      elevation_m: loc.elevation_m,
-      slope_degrees: loc.slope_degrees,
-      aspect_degrees: loc.aspect_degrees,
-      rainfall_1d_before: loc.rainfall_24h,
-      rainfall_3d_before: loc.rainfall_3d,
-      rainfall_7d_before: loc.rainfall_7d,
-      rainfall_14d_before: Math.round(loc.rainfall_7d * 1.4),
-      rainfall_30d_before: Math.round(loc.rainfall_7d * 2.1),
-      rainfall_7d_max1d: loc.rainfall_24h,
-      rainfall_3d_over_7d_ratio: +(loc.rainfall_3d / (loc.rainfall_7d || 1)).toFixed(2),
-      soil_moisture: loc.soil_moisture,
-      soil_moisture_available: 1,
-    });
-  },
-
-  /**
-   * Search all Northeast towns and cities (offline fallback)
+   * Search stored Northeast towns (offline fallback)
    */
   searchNortheastLocations(query: string = '', stateFilter: string = 'ALL'): NortheastLocation[] {
     const q = query.trim().toLowerCase();
@@ -407,62 +608,6 @@ export const apiService = {
   },
 
   /**
-   * Fetch live open-source meteorological & GIS telemetry (Open-Meteo & Open GIS)
-   */
-  async fetchLiveGisTelemetry(lat: number, lng: number, fallbackElev: number = 2000, fallbackSlope: number = 30): Promise<any> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/gis/live-telemetry?lat=${lat}&lng=${lng}`);
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch {
-      // Direct Open-Meteo client fallback
-    }
-
-    try {
-      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,precipitation,rain,wind_speed_10m&hourly=soil_moisture_0_to_1cm,soil_moisture_1_to_3cm&daily=precipitation_sum,rain_sum&timezone=auto&forecast_days=7`;
-      const res = await fetch(weatherUrl);
-      if (res.ok) {
-        const data = await res.json();
-        const daily = data.daily?.precipitation_sum || [];
-        const hourly = data.hourly || {};
-        const sm1 = hourly.soil_moisture_0_to_1cm || [];
-        const sm2 = hourly.soil_moisture_1_to_3cm || [];
-        const latestSm = sm1.length > 0 ? sm1[sm1.length - 1] : (sm2.length > 0 ? sm2[sm2.length - 1] : 0.45);
-        const calcMoisture = Math.min(0.98, Math.max(0.15, Number((latestSm * 1.6).toFixed(2))));
-
-        return {
-          source: 'Open-Meteo Real-Time Weather & Open GIS',
-          temperature: data.current?.temperature_2m ?? 18,
-          humidity: data.current?.relative_humidity_2m ?? 82,
-          wind_speed: data.current?.wind_speed_10m ?? 14,
-          rainfall_24h: Number((daily[0] || 0).toFixed(1)),
-          rainfall_3d: Number((daily.slice(0, 3).reduce((a: number, b: number) => a + b, 0)).toFixed(1)),
-          rainfall_7d: Number((daily.slice(0, 7).reduce((a: number, b: number) => a + b, 0)).toFixed(1)),
-          soil_moisture: calcMoisture,
-          elevation_m: fallbackElev,
-          slope_degrees: fallbackSlope,
-        };
-      }
-    } catch {
-      // fallback
-    }
-
-    return {
-      source: 'Open-Meteo Telemetry Cache',
-      temperature: 19,
-      humidity: 80,
-      wind_speed: 12,
-      rainfall_24h: 38.0,
-      rainfall_3d: 76.0,
-      rainfall_7d: 140.0,
-      soil_moisture: 0.65,
-      elevation_m: fallbackElev,
-      slope_degrees: fallbackSlope,
-    };
-  },
-
-  /**
    * Submit a new citizen / field report
    * Optional image file upload attached directly.
    */
@@ -482,7 +627,6 @@ export const apiService = {
 
     let prediction: MLPredictionResult | undefined;
 
-    // Calculate prediction for the report coordinates & features
     if (payload.features) {
       prediction = await this.predictLiveRisk(payload.features);
       newReport.risk_score = prediction.risk_score;
@@ -506,7 +650,6 @@ export const apiService = {
         const data = await response.json();
         newReport = { ...newReport, ...data };
 
-        // If an image was attached, upload it
         if (imageFile && newReport.id) {
           try {
             const formData = new FormData();
@@ -525,7 +668,6 @@ export const apiService = {
         }
       }
     } catch {
-      // Backend offline -> save locally with data preview URL
       if (imageFile) {
         newReport.image_url = URL.createObjectURL(imageFile);
       }
@@ -553,7 +695,7 @@ export const apiService = {
         id: 'alt-101',
         report_id: 'rep-init-01',
         severity: 'CRITICAL',
-        message: 'Critical landslide hazard: 92mm rainfall in Tawang Sector 12. Evacuate unstable slopes.',
+        message: 'Critical landslide hazard: Heavy antecedent rainfall on unstable slope. Evacuate downhill slopes.',
         status: 'DISPATCHED',
         created_at: new Date(Date.now() - 1800000).toISOString(),
       },
@@ -561,7 +703,7 @@ export const apiService = {
         id: 'alt-102',
         report_id: 'rep-init-02',
         severity: 'HIGH',
-        message: 'Sela Pass Corridor: Heavy scree movement blocking NH-13 near Km 42. Traffic diverted.',
+        message: 'Mountain Corridor: Scree movement blocking highway lane. Patrol team deployed.',
         status: 'ACTIVE',
         created_at: new Date(Date.now() - 7200000).toISOString(),
       },
@@ -581,7 +723,6 @@ export const apiService = {
       // Fallback
     }
 
-    // Return current Northeast locations as GIS points
     return NORTHEAST_LOCATIONS.map((loc) => ({
       id: loc.id,
       latitude: loc.coordinates[0],

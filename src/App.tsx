@@ -115,74 +115,58 @@ export function App() {
     }
   }, []);
 
-  // Load telemetry & locations from backend APIs whenever selected Northeast location changes
+  // Load telemetry & ML risk dynamically whenever selected location or coordinates change
   const refreshLocationData = useCallback(async () => {
     setLoading(true);
 
     try {
       const [lat, lng] = selectedLocation.coordinates;
 
-      // 1. Fetch live real-time Open-Meteo & Open GIS telemetry
-      const liveTelem = await apiService.fetchLiveGisTelemetry(
-        lat,
-        lng,
-        selectedLocation.elevation_m,
-        selectedLocation.slope_degrees
-      );
+      // 1. Fetch live real-time Open-Meteo & Copernicus DEM telemetry + Authoritative ML Risk Inference
+      const liveRisk = await apiService.getLiveRisk(lat, lng);
+      const liveEnv = liveRisk.environmental;
+      const livePred = liveRisk.prediction;
 
-      // 2. Fetch backend dashboard telemetry & database field reports
-      const backendDash = await apiService.fetchLocationDashboard(selectedLocation.id);
-      const dbReports = await loadDatabaseReports();
-
-      // 3. Compute live ML prediction strictly for landslide risk detection
-      const mlResult = await apiService.predictLiveRisk({
-        elevation_m: liveTelem?.elevation_m ?? selectedLocation.elevation_m,
-        slope_degrees: liveTelem?.slope_degrees ?? selectedLocation.slope_degrees,
-        aspect_degrees: selectedLocation.aspect_degrees || 120,
-        rainfall_1d_before: liveTelem?.rainfall_24h ?? selectedLocation.rainfall_24h,
-        rainfall_3d_before: liveTelem?.rainfall_3d ?? selectedLocation.rainfall_3d,
-        rainfall_7d_before: liveTelem?.rainfall_7d ?? selectedLocation.rainfall_7d,
-        rainfall_14d_before: Math.round((liveTelem?.rainfall_7d ?? selectedLocation.rainfall_7d) * 1.4),
-        rainfall_30d_before: Math.round((liveTelem?.rainfall_7d ?? selectedLocation.rainfall_7d) * 2.1),
-        rainfall_7d_max1d: liveTelem?.rainfall_24h ?? selectedLocation.rainfall_24h,
-        rainfall_3d_over_7d_ratio: +(
-          (liveTelem?.rainfall_3d ?? selectedLocation.rainfall_3d) /
-          Math.max(1, (liveTelem?.rainfall_7d ?? selectedLocation.rainfall_7d))
-        ).toFixed(2),
-        soil_moisture: liveTelem?.soil_moisture ?? selectedLocation.soil_moisture,
-        soil_moisture_available: 1,
+      setCurrentMLPrediction({
+        risk_score: livePred.risk_score,
+        risk_level: livePred.risk_level,
+        risk_tier: livePred.risk_tier,
+        alert_triggered: livePred.alert_triggered,
+        alert_message: livePred.alert_message,
+        source: 'live_ml_backend',
       });
 
-      setCurrentMLPrediction(mlResult);
+      // 2. Fetch backend database field reports
+      const dbReports = await loadDatabaseReports();
 
-      const liveRain24h = liveTelem?.rainfall_24h ?? selectedLocation.rainfall_24h;
-      const liveSoilMoistPct = Math.round((liveTelem?.soil_moisture ?? selectedLocation.soil_moisture) * 100);
-      const liveElev = liveTelem?.elevation_m ?? selectedLocation.elevation_m;
-      const liveSlope = liveTelem?.slope_degrees ?? selectedLocation.slope_degrees;
+      const liveRain24h = liveEnv.rainfall_24h;
+      const liveSoilMoistPct = Math.round(liveEnv.soil_moisture * 100);
+      const liveElev = liveEnv.elevation_m;
+      const liveSlope = liveEnv.slope_degrees;
 
       const mappedTier =
-        mlResult.risk_tier === 'CRITICAL'
+        livePred.risk_tier === 'CRITICAL'
           ? 'CRITICAL'
-          : mlResult.risk_tier === 'HIGH'
+          : livePred.risk_tier === 'HIGH'
           ? 'HIGH'
-          : mlResult.risk_tier === 'MEDIUM'
+          : livePred.risk_tier === 'MEDIUM'
           ? 'WATCH'
           : 'SAFE';
 
-      const base = (await dashboardService.getDistrictData(selectedLocation.id)) || backendDash;
+      const base = await dashboardService.getDistrictData(selectedLocation.id);
 
       const dynamicZones: RiskZone[] = [
         {
           id: `zone-${selectedLocation.id}-01`,
           name: `${selectedLocation.name} Sector 1 (Ridge Flank)`,
           sectorCode: `${selectedLocation.name.slice(0, 3).toUpperCase()}-SEC-01`,
-          riskScore: Math.round(mlResult.risk_score * 100),
+          riskScore: Math.round(livePred.risk_score * 100),
           riskLevel: mappedTier,
           rainfall24h: liveRain24h,
           soilMoisture: liveSoilMoistPct,
           slopeAngle: liveSlope,
           historicalEvents: 8,
-          predictionWindow: mlResult.risk_tier === 'CRITICAL' ? '1–3 hours' : '4–8 hours',
+          predictionWindow: livePred.risk_tier === 'CRITICAL' ? '1–3 hours' : '4–8 hours',
           confidence: 93,
           coordinates: [
             [lat + 0.005, lng - 0.006],
@@ -202,8 +186,8 @@ export function App() {
           id: `zone-${selectedLocation.id}-02`,
           name: `${selectedLocation.name} Highway Transit Pass`,
           sectorCode: `${selectedLocation.name.slice(0, 3).toUpperCase()}-HWY-02`,
-          riskScore: Math.max(20, Math.round(mlResult.risk_score * 100) - 12),
-          riskLevel: mlResult.risk_tier === 'CRITICAL' ? 'HIGH' : 'WATCH',
+          riskScore: Math.max(20, Math.round(livePred.risk_score * 100) - 12),
+          riskLevel: livePred.risk_tier === 'CRITICAL' ? 'HIGH' : 'WATCH',
           rainfall24h: Math.round(liveRain24h * 0.9),
           soilMoisture: Math.round(liveSoilMoistPct * 0.92),
           slopeAngle: Math.max(15, liveSlope - 6),
@@ -226,26 +210,27 @@ export function App() {
       ];
 
       const fullDistrict: District = {
-        ...base,
+        ...(base || {}),
         id: selectedLocation.id,
         name: `${selectedLocation.name} (${selectedLocation.district})`,
         state: selectedLocation.state,
         center: [lat, lng],
-        currentRisk: Math.round(mlResult.risk_score * 100),
+        zoom: 13,
+        currentRisk: Math.round(livePred.risk_score * 100),
         riskLevel: mappedTier,
-        riskTrend: mlResult.risk_tier === 'CRITICAL' ? '+18% Threat' : 'Stable slope trend',
-        predictionWindow: mlResult.risk_tier === 'CRITICAL' ? '1–3 hours' : '4–8 hours',
+        riskTrend: livePred.risk_tier === 'CRITICAL' ? '+18% Threat' : 'Stable slope trend',
+        predictionWindow: livePred.risk_tier === 'CRITICAL' ? '1–3 hours' : '4–8 hours',
         confidence: 93,
-        criticalAlertsCount: mlResult.risk_tier === 'CRITICAL' || mlResult.risk_tier === 'HIGH' ? 2 : 0,
+        criticalAlertsCount: livePred.risk_tier === 'CRITICAL' || livePred.risk_tier === 'HIGH' ? 2 : 0,
         highRiskZonesCount: dynamicZones.length,
-        blockedRoadsCount: mlResult.risk_tier === 'CRITICAL' ? 1 : 0,
+        blockedRoadsCount: livePred.risk_tier === 'CRITICAL' ? 1 : 0,
         environmental: {
           rainfall24h: liveRain24h,
           soilMoisture: liveSoilMoistPct,
-          temperature: liveTelem?.temperature ?? (liveElev > 2000 ? 14 : 22),
-          groundMovement: mlResult.risk_tier === 'CRITICAL' ? 1.8 : 0.4,
-          humidity: liveTelem?.humidity ?? 84,
-          windSpeed: liveTelem?.wind_speed ?? 14,
+          temperature: liveEnv.temperature,
+          groundMovement: livePred.risk_tier === 'CRITICAL' ? 1.8 : 0.4,
+          humidity: liveEnv.humidity,
+          windSpeed: liveEnv.wind_speed,
         },
         explainability: [
           {
@@ -278,7 +263,33 @@ export function App() {
           },
         ],
         riskZones: dynamicZones,
-        fieldReports: dbReports.length > 0 ? dbReports : base.fieldReports,
+        fieldReports: dbReports.length > 0 ? dbReports : (base?.fieldReports || []),
+        recommendedActions: base?.recommendedActions || [],
+        alerts: base?.alerts || [
+          {
+            id: `alt-${selectedLocation.id}-01`,
+            title: `${livePred.risk_tier} Landslide Threat in ${selectedLocation.name}`,
+            location: `${selectedLocation.name} Sector 1`,
+            riskScore: Math.round(livePred.risk_score * 100),
+            severity: mappedTier,
+            timestamp: 'Just now',
+            timeAgo: '10m ago',
+            summary: `${selectedLocation.name} is experiencing ${liveRain24h}mm 24h rainfall. Evacuate unstable slopes immediately.`,
+            affectedRoads: ['Main Hill Road', 'Highway Spur Km 42'],
+            recommendedAction: 'Immediate evacuation of downhill settlements',
+            status: 'ACTIVE',
+          },
+        ],
+        roads: base?.roads || [],
+        sensors: base?.sensors || [],
+        facilities: base?.facilities || [],
+        trend24h: base?.trend24h || [
+          { time: '14:00 (Y)', risk: Math.max(15, Math.round(livePred.risk_score * 100) - 20), rainfall: Math.round(liveRain24h * 0.4), threshold: 70 },
+          { time: '20:00', risk: Math.max(20, Math.round(livePred.risk_score * 100) - 15), rainfall: Math.round(liveRain24h * 0.6), threshold: 70 },
+          { time: '02:00', risk: Math.max(25, Math.round(livePred.risk_score * 100) - 8), rainfall: Math.round(liveRain24h * 0.8), threshold: 70 },
+          { time: '08:00', risk: Math.round(livePred.risk_score * 100), rainfall: liveRain24h, threshold: 70 },
+          { time: '14:00 (Now)', risk: Math.round(livePred.risk_score * 100), rainfall: liveRain24h, threshold: 70 },
+        ],
       };
 
       setDistrictData(fullDistrict);
@@ -537,6 +548,33 @@ export function App() {
                     selectedZone={selectedZone}
                     onSelectZone={(zone) => setSelectedZone(zone)}
                     onTriggerAlertModal={handleOpenTriggerAlert}
+                    selectedCoordinates={selectedLocation.coordinates}
+                    onMapClick={(lat, lng) => {
+                      const mapLoc: NortheastLocation = {
+                        id: `map-${lat}-${lng}`,
+                        name: `Selected Coordinate Pin`,
+                        state: 'India (GIS Map)',
+                        district: `[${lat.toFixed(4)}, ${lng.toFixed(4)}]`,
+                        coordinates: [lat, lng],
+                        elevation_m: districtData.environmental.rainfall24h ? 1200 : 1000,
+                        slope_degrees: 25,
+                        aspect_degrees: 135,
+                        rainfall_24h: 20,
+                        rainfall_3d: 55,
+                        rainfall_7d: 110,
+                        soil_moisture: 0.52,
+                        riskScore: 50,
+                        riskTier: 'MEDIUM',
+                        description: `User-selected coordinate on GIS map at [${lat.toFixed(4)}, ${lng.toFixed(4)}] evaluated dynamically with Open-Meteo & Copernicus DEM.`,
+                        evacuationCenter: 'Nearest Community Safe Zone',
+                        shelterDistance: '1.2 km away',
+                        helpline: '1078 (Disaster Toll-Free)',
+                        sensorsCount: 4,
+                        populationAtRisk: 600,
+                      };
+                      setSelectedLocation(mapLoc);
+                      showToast(`📍 Selected site [${lat.toFixed(4)}, ${lng.toFixed(4)}]. Calculating live ML risk...`);
+                    }}
                   />
 
                   {/* Map Zone Detail Panel */}

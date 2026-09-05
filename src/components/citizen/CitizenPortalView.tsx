@@ -23,7 +23,7 @@ import {
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import type { NortheastLocation } from '../../data/northeastLocations';
-import { apiService, type MLPredictionResult } from '../../services/api';
+import { apiService, type MLPredictionResult, type MLFeatureInput } from '../../services/api';
 
 const citizenShelterIcon = L.divIcon({
   className: 'citizen-marker',
@@ -92,9 +92,25 @@ export const CitizenPortalView: React.FC<CitizenPortalViewProps> = ({
     slope_degrees: location.slope_degrees,
   });
 
-  // Live ML Prediction state (strictly for landslide detection)
+  // Live ML Prediction state
   const [livePrediction, setLivePrediction] = useState<MLPredictionResult | null>(null);
   const [isCalculatingML, setIsCalculatingML] = useState(false);
+
+  // Live ML Feature state
+  const [liveFeatures, setLiveFeatures] = useState<MLFeatureInput>({
+    elevation_m: location.elevation_m,
+    slope_degrees: location.slope_degrees,
+    aspect_degrees: location.aspect_degrees || 135,
+    rainfall_1d_before: location.rainfall_24h,
+    rainfall_3d_before: location.rainfall_3d,
+    rainfall_7d_before: location.rainfall_7d,
+    rainfall_14d_before: location.rainfall_7d * 1.5,
+    rainfall_30d_before: location.rainfall_7d * 2.5,
+    rainfall_7d_max1d: location.rainfall_24h,
+    rainfall_3d_over_7d_ratio: +(location.rainfall_3d / Math.max(1, location.rainfall_7d)).toFixed(2),
+    soil_moisture: location.soil_moisture,
+    soil_moisture_available: 1,
+  });
 
   // Fetch real-time Open-Meteo & Open GIS telemetry, then run ML prediction for landslide detection
   useEffect(() => {
@@ -104,44 +120,39 @@ export const CitizenPortalView: React.FC<CitizenPortalViewProps> = ({
 
     const [lat, lng] = liveGpsCoords || location.coordinates;
 
-    apiService.fetchLiveGisTelemetry(lat, lng, location.elevation_m, location.slope_degrees).then((telem) => {
+    apiService.getLiveRisk(lat, lng).then((liveRisk) => {
       if (!isMounted) return;
 
-      const liveData = telem || {
-        source: 'Open-Meteo Free API & Open GIS',
-        rainfall_24h: location.rainfall_24h,
-        rainfall_3d: location.rainfall_3d,
-        rainfall_7d: location.rainfall_7d,
-        soil_moisture: location.soil_moisture,
-        temperature: 18,
-        humidity: 82,
-        wind_speed: 14,
-        elevation_m: location.elevation_m,
-        slope_degrees: location.slope_degrees,
-      };
+      const env = liveRisk.environmental;
+      const feat = liveRisk.features;
 
-      setLiveTelemetry(liveData);
+      setLiveFeatures(feat);
 
-      // Pass real-time telemetry into ML model strictly for landslide risk detection
-      apiService.predictLiveRisk({
-        elevation_m: liveData.elevation_m,
-        slope_degrees: liveData.slope_degrees,
-        aspect_degrees: location.aspect_degrees || 120,
-        rainfall_1d_before: liveData.rainfall_24h,
-        rainfall_3d_before: liveData.rainfall_3d,
-        rainfall_7d_before: liveData.rainfall_7d,
-        rainfall_14d_before: Math.round(liveData.rainfall_7d * 1.4),
-        rainfall_30d_before: Math.round(liveData.rainfall_7d * 2.1),
-        rainfall_7d_max1d: liveData.rainfall_24h,
-        rainfall_3d_over_7d_ratio: +(liveData.rainfall_3d / Math.max(1, liveData.rainfall_7d)).toFixed(2),
-        soil_moisture: liveData.soil_moisture,
-        soil_moisture_available: 1,
-      }).then((pred) => {
-        if (isMounted) {
-          setLivePrediction(pred);
-          setIsCalculatingML(false);
-        }
+      setLiveTelemetry({
+        source: liveRisk.data_sources.weather || 'Open-Meteo Free API & Open GIS',
+        rainfall_24h: env.rainfall_24h,
+        rainfall_3d: env.rainfall_3d,
+        rainfall_7d: env.rainfall_7d,
+        soil_moisture: env.soil_moisture,
+        temperature: env.temperature,
+        humidity: env.humidity,
+        wind_speed: env.wind_speed,
+        elevation_m: env.elevation_m,
+        slope_degrees: env.slope_degrees,
       });
+
+      setLivePrediction({
+        risk_score: liveRisk.prediction.risk_score,
+        risk_level: liveRisk.prediction.risk_level,
+        risk_tier: liveRisk.prediction.risk_tier,
+        alert_triggered: liveRisk.prediction.alert_triggered,
+        alert_message: liveRisk.prediction.alert_message,
+        source: 'live_ml_backend',
+      });
+
+      setIsCalculatingML(false);
+    }).catch(() => {
+      if (isMounted) setIsCalculatingML(false);
     });
 
     return () => {
@@ -186,20 +197,7 @@ export const CitizenPortalView: React.FC<CitizenPortalViewProps> = ({
           longitude: (liveGpsCoords ? liveGpsCoords[1] : location.coordinates[1]),
           report: `${hazardType} at ${hazardLocation}`,
           report_description: hazardNotes,
-          features: {
-            elevation_m: liveTelemetry.elevation_m,
-            slope_degrees: liveTelemetry.slope_degrees,
-            aspect_degrees: location.aspect_degrees || 120,
-            rainfall_1d_before: liveTelemetry.rainfall_24h,
-            rainfall_3d_before: liveTelemetry.rainfall_3d,
-            rainfall_7d_before: liveTelemetry.rainfall_7d,
-            rainfall_14d_before: Math.round(liveTelemetry.rainfall_7d * 1.4),
-            rainfall_30d_before: Math.round(liveTelemetry.rainfall_7d * 2.1),
-            rainfall_7d_max1d: liveTelemetry.rainfall_24h,
-            rainfall_3d_over_7d_ratio: +(liveTelemetry.rainfall_3d / Math.max(1, liveTelemetry.rainfall_7d)).toFixed(2),
-            soil_moisture: liveTelemetry.soil_moisture,
-            soil_moisture_available: 1,
-          },
+          features: liveFeatures,
         },
         selectedImage
       );

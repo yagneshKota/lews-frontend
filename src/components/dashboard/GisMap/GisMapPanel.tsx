@@ -7,6 +7,7 @@ import {
   Marker,
   Popup,
   useMap,
+  useMapEvents,
 } from 'react-leaflet';
 import L from 'leaflet';
 import {
@@ -19,6 +20,7 @@ import {
   FileSpreadsheet,
   Route,
   Compass,
+  MapPin,
 } from 'lucide-react';
 import type {
   District,
@@ -26,7 +28,7 @@ import type {
 } from '../../../types/dashboard';
 import { getRiskColor } from '../../../utils/riskUtils';
 
-// Helper component to smoothly pan/zoom when selected district changes or reset is clicked
+// Helper component to smoothly pan/zoom when selected district changes
 const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({
   center,
   zoom,
@@ -35,6 +37,18 @@ const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({
   useEffect(() => {
     map.flyTo(center, zoom, { duration: 1.2 });
   }, [center, zoom, map]);
+  return null;
+};
+
+// Captures map clicks to dynamically select arbitrary coordinates anywhere in India / the world
+const MapClickHandler: React.FC<{ onMapClick?: (lat: number, lng: number) => void }> = ({ onMapClick }) => {
+  useMapEvents({
+    click(e) {
+      if (onMapClick) {
+        onMapClick(Number(e.latlng.lat.toFixed(4)), Number(e.latlng.lng.toFixed(4)));
+      }
+    },
+  });
   return null;
 };
 
@@ -61,7 +75,7 @@ const MapResizeController: React.FC<{ isFullscreen: boolean }> = ({ isFullscreen
   return null;
 };
 
-// Custom SVG HTML Icons for Leaflet markers to ensure clean, crisp rendering
+// Custom SVG HTML Icons for Leaflet markers
 const createCustomIcon = (
   bg: string,
   border: string,
@@ -84,7 +98,7 @@ const createCustomIcon = (
         box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15), 0 2px 4px -2px rgba(0,0,0,0.1);
         cursor: pointer;
       ">
-        ${isPulsing ? `<div style="position: absolute; inset: -4px; border-radius: 10px; border: 2px solid ${border}; animation: subtle-pulse 2s infinite ease-in-out; opacity: 0.7;"></div>` : ''}
+        ${isPulsing ? `<div style="position: absolute; inset: -5px; border-radius: 12px; border: 2.5px solid ${border}; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; opacity: 0.75;"></div>` : ''}
         ${iconSvg}
       </div>
     `,
@@ -93,6 +107,14 @@ const createCustomIcon = (
     popupAnchor: [0, -16],
   });
 };
+
+const activeTargetIcon = () =>
+  createCustomIcon(
+    '#10B981',
+    '#FFFFFF',
+    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
+    true
+  );
 
 const sensorIcon = (status: string) =>
   createCustomIcon(
@@ -124,6 +146,8 @@ interface GisMapPanelProps {
   selectedZone: RiskZone | null;
   onSelectZone: (zone: RiskZone) => void;
   onTriggerAlertModal: (zone: RiskZone) => void;
+  selectedCoordinates?: [number, number];
+  onMapClick?: (lat: number, lng: number) => void;
 }
 
 export const GisMapPanel: React.FC<GisMapPanelProps> = ({
@@ -131,6 +155,8 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
   selectedZone,
   onSelectZone,
   onTriggerAlertModal,
+  selectedCoordinates,
+  onMapClick,
 }) => {
   const [mapLayer, setMapLayer] = useState<'topo' | 'satellite' | 'terrain'>('topo');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -148,7 +174,6 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
     setVisibleLayers((prev) => ({ ...prev, [layerKey]: !prev[layerKey] }));
   };
 
-  // Close fullscreen on Esc key press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isFullscreen) {
@@ -162,12 +187,12 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
   const tileConfig = {
     topo: {
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-      attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community',
+      attribution: 'Tiles &copy; Esri &mdash; Esri, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey',
       name: 'Topographic / Relief',
     },
     satellite: {
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye',
       name: 'High-Res Satellite',
     },
     terrain: {
@@ -176,6 +201,8 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
       name: 'Elevation Contours (OpenTopo)',
     },
   };
+
+  const centerCoords: [number, number] = selectedCoordinates || district.center;
 
   return (
     <div
@@ -193,7 +220,7 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
             <h2 className="text-[13px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <span>{district.name} GIS Live Risk Map</span>
               <span className="text-[10px] font-medium text-slate-600 dark:text-emerald-300 bg-slate-100 dark:bg-emerald-950/80 px-2 py-0.5 rounded-md border border-slate-200 dark:border-emerald-800 font-mono">
-                Elev. ~{district.riskZones[0]?.elevation || 2800}m
+                Click map to select coordinate
               </span>
               {isFullscreen && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-600 text-white font-mono">
@@ -304,13 +331,14 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
       {/* Main Map Container */}
       <div className="relative flex-1 w-full h-full">
         <MapContainer
-          center={district.center}
-          zoom={district.zoom}
+          center={centerCoords}
+          zoom={district.zoom || 13}
           scrollWheelZoom={true}
           style={{ width: '100%', height: '100%' }}
         >
-          <MapController center={district.center} zoom={district.zoom} />
+          <MapController center={centerCoords} zoom={district.zoom || 13} />
           <MapResizeController isFullscreen={isFullscreen} />
+          <MapClickHandler onMapClick={onMapClick} />
 
           <TileLayer
             key={mapLayer}
@@ -318,6 +346,31 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
             url={tileConfig[mapLayer].url}
             maxZoom={18}
           />
+
+          {/* Active Target Selected Coordinate Marker */}
+          {selectedCoordinates && (
+            <Marker position={selectedCoordinates} icon={activeTargetIcon()}>
+              <Popup>
+                <div className="p-2.5 min-w-[200px] text-left">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <MapPin className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-slate-900">
+                      Live Selected Coordinate
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-mono text-slate-600">
+                    [{selectedCoordinates[0].toFixed(4)}, {selectedCoordinates[1].toFixed(4)}]
+                  </p>
+                  <p className="text-[11px] text-emerald-700 font-semibold mt-1">
+                    Risk Assessment: <strong>{district.currentRisk}% ({district.riskLevel})</strong>
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Live Open-Meteo & Copernicus DEM Telemetry Active
+                  </p>
+                </div>
+              </Popup>
+            </Marker>
+          )}
 
           {/* 1. Risk Heat Polygons */}
           {visibleLayers.riskZones &&
@@ -337,7 +390,8 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
                     dashArray: isSelected ? undefined : '2, 3',
                   }}
                   eventHandlers={{
-                    click: () => {
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e as any);
                       onSelectZone(zone);
                     },
                   }}
@@ -504,7 +558,7 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
           <div className="flex items-center justify-between gap-3 mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#475569] flex items-center gap-1.5">
               <Compass className="w-3.5 h-3.5 text-[#1B4332]" />
-              Map Legend
+              Map Legend &bull; Click Anywhere to Analyze
             </span>
           </div>
 
