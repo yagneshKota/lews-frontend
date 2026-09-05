@@ -107,6 +107,7 @@ export function App() {
         notes: r.report_description,
         hasPhotos: !!r.image_url,
         photoCount: r.image_url ? 1 : 0,
+        imageUrl: r.image_url || null,
         verified: true,
       }));
     } catch {
@@ -119,57 +120,46 @@ export function App() {
     setLoading(true);
 
     try {
-      // 1. Try to fetch rich dashboard telemetry from backend
+      const [lat, lng] = selectedLocation.coordinates;
+
+      // 1. Fetch live real-time Open-Meteo & Open GIS telemetry
+      const liveTelem = await apiService.fetchLiveGisTelemetry(
+        lat,
+        lng,
+        selectedLocation.elevation_m,
+        selectedLocation.slope_degrees
+      );
+
+      // 2. Fetch backend dashboard telemetry & database field reports
       const backendDash = await apiService.fetchLocationDashboard(selectedLocation.id);
       const dbReports = await loadDatabaseReports();
 
-      if (backendDash) {
-        const fullDistrict: District = {
-          id: backendDash.id,
-          name: backendDash.name,
-          state: backendDash.state,
-          center: backendDash.center,
-          zoom: backendDash.zoom,
-          currentRisk: backendDash.currentRisk,
-          riskLevel: backendDash.riskLevel,
-          riskTrend: backendDash.riskTrend,
-          predictionWindow: backendDash.predictionWindow,
-          confidence: backendDash.confidence,
-          criticalAlertsCount: backendDash.criticalAlertsCount,
-          highRiskZonesCount: backendDash.highRiskZonesCount,
-          blockedRoadsCount: backendDash.blockedRoadsCount,
-          environmental: backendDash.environmental,
-          explainability: backendDash.explainability,
-          recommendedActions: backendDash.recommendedActions,
-          riskZones: backendDash.riskZones,
-          alerts: backendDash.alerts,
-          roads: backendDash.roads,
-          sensors: backendDash.sensors,
-          facilities: backendDash.facilities,
-          fieldReports: dbReports.length > 0 ? dbReports : backendDash.fieldReports,
-          trend24h: backendDash.trend24h,
-        };
+      // 3. Compute live ML prediction strictly for landslide risk detection
+      const mlResult = await apiService.predictLiveRisk({
+        elevation_m: liveTelem?.elevation_m ?? selectedLocation.elevation_m,
+        slope_degrees: liveTelem?.slope_degrees ?? selectedLocation.slope_degrees,
+        aspect_degrees: selectedLocation.aspect_degrees || 120,
+        rainfall_1d_before: liveTelem?.rainfall_24h ?? selectedLocation.rainfall_24h,
+        rainfall_3d_before: liveTelem?.rainfall_3d ?? selectedLocation.rainfall_3d,
+        rainfall_7d_before: liveTelem?.rainfall_7d ?? selectedLocation.rainfall_7d,
+        rainfall_14d_before: Math.round((liveTelem?.rainfall_7d ?? selectedLocation.rainfall_7d) * 1.4),
+        rainfall_30d_before: Math.round((liveTelem?.rainfall_7d ?? selectedLocation.rainfall_7d) * 2.1),
+        rainfall_7d_max1d: liveTelem?.rainfall_24h ?? selectedLocation.rainfall_24h,
+        rainfall_3d_over_7d_ratio: +(
+          (liveTelem?.rainfall_3d ?? selectedLocation.rainfall_3d) /
+          Math.max(1, (liveTelem?.rainfall_7d ?? selectedLocation.rainfall_7d))
+        ).toFixed(2),
+        soil_moisture: liveTelem?.soil_moisture ?? selectedLocation.soil_moisture,
+        soil_moisture_available: 1,
+      });
 
-        setDistrictData(fullDistrict);
-        setSelectedZone(fullDistrict.riskZones[0] || null);
-        setCurrentMLPrediction({
-          risk_score: fullDistrict.currentRisk / 100,
-          risk_level: fullDistrict.currentRisk >= 85 ? 3 : fullDistrict.currentRisk >= 60 ? 2 : 1,
-          risk_tier: (fullDistrict.riskLevel === 'CRITICAL' ? 'CRITICAL' : fullDistrict.riskLevel === 'HIGH' ? 'HIGH' : 'MEDIUM') as any,
-          alert_triggered: fullDistrict.currentRisk >= 85,
-          alert_message: `${fullDistrict.riskLevel} alert active`,
-          source: 'live_ml_backend',
-        });
-        setLoading(false);
-        return;
-      }
-
-      // 2. Fallback dynamic synthesis with live ML evaluation
-      const mlResult = await apiService.predictForLocation(selectedLocation);
       setCurrentMLPrediction(mlResult);
 
-      const base = await dashboardService.getDistrictData(selectedLocation.id);
-      const [lat, lng] = selectedLocation.coordinates;
+      const liveRain24h = liveTelem?.rainfall_24h ?? selectedLocation.rainfall_24h;
+      const liveSoilMoistPct = Math.round((liveTelem?.soil_moisture ?? selectedLocation.soil_moisture) * 100);
+      const liveElev = liveTelem?.elevation_m ?? selectedLocation.elevation_m;
+      const liveSlope = liveTelem?.slope_degrees ?? selectedLocation.slope_degrees;
+
       const mappedTier =
         mlResult.risk_tier === 'CRITICAL'
           ? 'CRITICAL'
@@ -179,6 +169,8 @@ export function App() {
           ? 'WATCH'
           : 'SAFE';
 
+      const base = (await dashboardService.getDistrictData(selectedLocation.id)) || backendDash;
+
       const dynamicZones: RiskZone[] = [
         {
           id: `zone-${selectedLocation.id}-01`,
@@ -186,9 +178,9 @@ export function App() {
           sectorCode: `${selectedLocation.name.slice(0, 3).toUpperCase()}-SEC-01`,
           riskScore: Math.round(mlResult.risk_score * 100),
           riskLevel: mappedTier,
-          rainfall24h: selectedLocation.rainfall_24h,
-          soilMoisture: Math.round(selectedLocation.soil_moisture * 100),
-          slopeAngle: selectedLocation.slope_degrees,
+          rainfall24h: liveRain24h,
+          soilMoisture: liveSoilMoistPct,
+          slopeAngle: liveSlope,
           historicalEvents: 8,
           predictionWindow: mlResult.risk_tier === 'CRITICAL' ? '1–3 hours' : '4–8 hours',
           confidence: 93,
@@ -200,7 +192,7 @@ export function App() {
             [lat - 0.002, lng - 0.008],
           ],
           center: [lat + 0.003, lng + 0.001],
-          elevation: selectedLocation.elevation_m,
+          elevation: liveElev,
           description: selectedLocation.description,
           sensorsCount: selectedLocation.sensorsCount,
           populationAtRisk: selectedLocation.populationAtRisk,
@@ -212,9 +204,9 @@ export function App() {
           sectorCode: `${selectedLocation.name.slice(0, 3).toUpperCase()}-HWY-02`,
           riskScore: Math.max(20, Math.round(mlResult.risk_score * 100) - 12),
           riskLevel: mlResult.risk_tier === 'CRITICAL' ? 'HIGH' : 'WATCH',
-          rainfall24h: Math.round(selectedLocation.rainfall_24h * 0.9),
-          soilMoisture: Math.round(selectedLocation.soil_moisture * 92),
-          slopeAngle: Math.max(15, selectedLocation.slope_degrees - 6),
+          rainfall24h: Math.round(liveRain24h * 0.9),
+          soilMoisture: Math.round(liveSoilMoistPct * 0.92),
+          slopeAngle: Math.max(15, liveSlope - 6),
           historicalEvents: 5,
           predictionWindow: '6–12 hours',
           confidence: 89,
@@ -225,7 +217,7 @@ export function App() {
             [lat - 0.022, lng - 0.002],
           ],
           center: [lat - 0.014, lng - 0.003],
-          elevation: Math.round(selectedLocation.elevation_m * 0.95),
+          elevation: Math.round(liveElev * 0.95),
           description: 'Arterial transit cut slope with rockfall protection netting and piezometers.',
           sensorsCount: 4,
           populationAtRisk: Math.round(selectedLocation.populationAtRisk * 0.6),
@@ -233,7 +225,7 @@ export function App() {
         },
       ];
 
-      const updatedDistrict: District = {
+      const fullDistrict: District = {
         ...base,
         id: selectedLocation.id,
         name: `${selectedLocation.name} (${selectedLocation.district})`,
@@ -241,19 +233,55 @@ export function App() {
         center: [lat, lng],
         currentRisk: Math.round(mlResult.risk_score * 100),
         riskLevel: mappedTier,
+        riskTrend: mlResult.risk_tier === 'CRITICAL' ? '+18% Threat' : 'Stable slope trend',
+        predictionWindow: mlResult.risk_tier === 'CRITICAL' ? '1–3 hours' : '4–8 hours',
+        confidence: 93,
+        criticalAlertsCount: mlResult.risk_tier === 'CRITICAL' || mlResult.risk_tier === 'HIGH' ? 2 : 0,
+        highRiskZonesCount: dynamicZones.length,
+        blockedRoadsCount: mlResult.risk_tier === 'CRITICAL' ? 1 : 0,
         environmental: {
-          rainfall24h: selectedLocation.rainfall_24h,
-          soilMoisture: Math.round(selectedLocation.soil_moisture * 100),
-          temperature: selectedLocation.elevation_m > 2000 ? 14 : 22,
+          rainfall24h: liveRain24h,
+          soilMoisture: liveSoilMoistPct,
+          temperature: liveTelem?.temperature ?? (liveElev > 2000 ? 14 : 22),
           groundMovement: mlResult.risk_tier === 'CRITICAL' ? 1.8 : 0.4,
-          humidity: 88,
-          windSpeed: 16,
+          humidity: liveTelem?.humidity ?? 84,
+          windSpeed: liveTelem?.wind_speed ?? 14,
         },
+        explainability: [
+          {
+            factor: 'Antecedent Precipitation (Open-Meteo)',
+            percentage: 36,
+            metricValue: `${liveRain24h} mm / 24h`,
+            category: 'rainfall',
+            impact: liveRain24h > 60 ? 'high' : 'moderate',
+          },
+          {
+            factor: 'Soil Pore Saturation (Open-Meteo)',
+            percentage: 28,
+            metricValue: `${liveSoilMoistPct}% saturation`,
+            category: 'soil',
+            impact: liveSoilMoistPct > 70 ? 'high' : 'moderate',
+          },
+          {
+            factor: 'Terrain Slope Incline (Open GIS)',
+            percentage: 22,
+            metricValue: `${liveSlope}° critical grade`,
+            category: 'slope',
+            impact: liveSlope > 35 ? 'high' : 'moderate',
+          },
+          {
+            factor: 'Elevation & Orography (Open GIS)',
+            percentage: 14,
+            metricValue: `${liveElev} m MSL`,
+            category: 'movement',
+            impact: 'moderate',
+          },
+        ],
         riskZones: dynamicZones,
         fieldReports: dbReports.length > 0 ? dbReports : base.fieldReports,
       };
 
-      setDistrictData(updatedDistrict);
+      setDistrictData(fullDistrict);
       setSelectedZone(dynamicZones[0]);
     } catch {
       // Graceful fallback

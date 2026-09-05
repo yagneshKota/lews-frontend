@@ -38,15 +38,24 @@ const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({
   return null;
 };
 
-// Invalidate size when container expands or contracts
+// Invalidate size when container expands or contracts on desktop and mobile
 const MapResizeController: React.FC<{ isFullscreen: boolean }> = ({ isFullscreen }) => {
   const map = useMap();
   useEffect(() => {
-    const timer1 = setTimeout(() => map.invalidateSize(), 100);
-    const timer2 = setTimeout(() => map.invalidateSize(), 300);
+    const handleResize = () => map.invalidateSize();
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
+    const timer1 = setTimeout(() => map.invalidateSize(), 50);
+    const timer2 = setTimeout(() => map.invalidateSize(), 200);
+    const timer3 = setTimeout(() => map.invalidateSize(), 500);
+
     return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
       clearTimeout(timer1);
       clearTimeout(timer2);
+      clearTimeout(timer3);
     };
   }, [isFullscreen, map]);
   return null;
@@ -172,7 +181,7 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
     <div
       className={`relative bg-[#F1F5F9] dark:bg-[#071711] rounded-2xl border border-slate-300 dark:border-emerald-800/60 overflow-hidden shadow-md flex flex-col transition-all duration-300 ${
         isFullscreen
-          ? 'fixed inset-0 z-50 rounded-none shadow-2xl h-screen w-screen max-w-full max-h-full overflow-hidden'
+          ? 'fixed inset-0 z-[9999] rounded-none shadow-2xl h-[100dvh] w-screen max-w-full max-h-full overflow-hidden'
           : 'h-[540px] w-full'
       }`}
     >

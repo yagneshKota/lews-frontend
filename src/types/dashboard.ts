@@ -124,6 +124,7 @@ export interface FieldReport {
   notes: string;
   hasPhotos: boolean;
   photoCount?: number;
+  imageUrl?: string | null;
   verified: boolean;
 }
 

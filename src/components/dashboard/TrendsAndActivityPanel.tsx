@@ -287,23 +287,35 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
               <div
                 key={report.id}
                 onClick={() => onSelectReport(report)}
-                className="p-2.5 rounded-xl border border-slate-100 dark:border-emerald-900/60 hover:border-slate-300 dark:hover:border-emerald-700 bg-slate-50 dark:bg-[#071711] hover:bg-white dark:hover:bg-[#0f2a1e] transition-all cursor-pointer flex items-center justify-between gap-2"
+                className="p-2.5 rounded-xl border border-slate-200 dark:border-emerald-900/60 hover:border-slate-300 dark:hover:border-emerald-700 bg-slate-50 dark:bg-[#071711] hover:bg-white dark:hover:bg-[#0f2a1e] transition-all cursor-pointer flex items-center justify-between gap-3"
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-900 dark:text-white truncate">
-                      {report.hazardType}
-                    </span>
-                    {report.hasPhotos && (
-                      <span className="flex items-center gap-0.5 text-[9px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 px-1 py-0.2 rounded border border-blue-200 dark:border-blue-800">
-                        <Camera className="w-2.5 h-2.5" />
-                        {report.photoCount || 1}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {report.imageUrl ? (
+                    <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-300 dark:border-emerald-700 shrink-0 bg-slate-200 dark:bg-emerald-950">
+                      <img src={report.imageUrl} alt="Hazard" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                      <FileSpreadsheet className="w-4 h-4" />
+                    </div>
+                  )}
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] font-bold text-slate-900 dark:text-white truncate">
+                        {report.hazardType}
                       </span>
-                    )}
+                      {report.hasPhotos && (
+                        <span className="flex items-center gap-0.5 text-[9px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 px-1 py-0.2 rounded border border-blue-200 dark:border-blue-800">
+                          <Camera className="w-2.5 h-2.5" />
+                          {report.photoCount || 1}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                      {report.location} &bull; by {report.observerName} ({report.timeAgo})
+                    </p>
                   </div>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                    {report.location} &bull; by {report.observerName} ({report.timeAgo})
-                  </p>
                 </div>
 
                 <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 shrink-0">
