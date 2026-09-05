@@ -83,7 +83,7 @@ export const ZoneDetailPanel: React.FC<ZoneDetailPanelProps> = ({
             Risk Score
           </span>
           <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
-            {zone.riskScore}%
+            {zone.riskScore !== null ? `${zone.riskScore}%` : <span className="text-lg text-slate-400 dark:text-slate-500">Unavailable</span>}
           </span>
           <span
             className="text-xs font-bold px-2 py-0.5 rounded"
@@ -113,7 +113,7 @@ export const ZoneDetailPanel: React.FC<ZoneDetailPanelProps> = ({
             <span>Rainfall</span>
           </div>
           <p className="text-[13px] font-bold text-slate-900 dark:text-white">
-            {zone.rainfall24h} mm <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400">/ 24h</span>
+            {zone.rainfall24h !== null ? `${zone.rainfall24h} mm` : <span className="text-slate-400">N/A</span>} <span className="text-[10px] font-normal text-slate-500 dark:text-slate-400">/ 24h</span>
           </p>
         </div>
 
@@ -124,7 +124,7 @@ export const ZoneDetailPanel: React.FC<ZoneDetailPanelProps> = ({
             <span>Soil Moisture</span>
           </div>
           <p className="text-[13px] font-bold text-slate-900 dark:text-white">
-            {zone.soilMoisture}%
+            {zone.soilMoisture !== null ? `${zone.soilMoisture}%` : <span className="text-slate-400">N/A</span>}
           </p>
         </div>
 
@@ -135,7 +135,7 @@ export const ZoneDetailPanel: React.FC<ZoneDetailPanelProps> = ({
             <span>Slope Angle</span>
           </div>
           <p className="text-[13px] font-bold text-slate-900 dark:text-white">
-            {zone.slopeAngle}°
+            {zone.slopeAngle !== null ? `${zone.slopeAngle}°` : <span className="text-slate-400">N/A</span>}
           </p>
         </div>
 

@@ -1,4 +1,5 @@
-export type RiskLevel = 'SAFE' | 'WATCH' | 'HIGH' | 'CRITICAL';
+export type RiskLevel = 'SAFE' | 'WATCH' | 'HIGH' | 'CRITICAL' | 'UNAVAILABLE';
+export type RiskDataStatus = 'LOADING' | 'LIVE' | 'UNAVAILABLE';
 export type UserRole = 'govt' | 'citizen' | 'admin';
 
 export interface UserProfile {
@@ -46,17 +47,17 @@ export interface RiskZone {
   id: string;
   name: string;
   sectorCode: string;
-  riskScore: number;
+  riskScore: number | null; // null when live prediction unavailable
   riskLevel: RiskLevel;
-  rainfall24h: number;
-  soilMoisture: number;
-  slopeAngle: number;
+  rainfall24h: number | null;
+  soilMoisture: number | null;
+  slopeAngle: number | null;
   historicalEvents: number;
   predictionWindow: string;
-  confidence: number;
+  confidence: number | null; // null = model did not provide calibrated confidence
   coordinates: [number, number][]; // Polygon coordinates [lat, lng]
   center: [number, number];
-  elevation: number; // in meters
+  elevation: number | null;
   description: string;
   sensorsCount: number;
   populationAtRisk: number;
@@ -141,15 +142,16 @@ export interface District {
   state: string;
   center: [number, number];
   zoom: number;
-  currentRisk: number;
+  currentRisk: number | null; // null when live prediction is unavailable — never fabricate
   riskLevel: RiskLevel;
+  riskDataStatus: RiskDataStatus; // tracks live/loading/unavailable state
   riskTrend: string;
   predictionWindow: string;
-  confidence: number;
+  confidence: number | null; // null = backend model has not returned calibrated confidence
   criticalAlertsCount: number;
   highRiskZonesCount: number;
   blockedRoadsCount: number;
-  environmental: EnvironmentalData;
+  environmental: EnvironmentalData | null; // null when live telemetry unavailable
   explainability: RiskFactorContribution[];
   recommendedActions: RecommendedAction[];
   riskZones: RiskZone[];

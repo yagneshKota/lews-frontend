@@ -33,8 +33,8 @@ export const SlopeStabilityProfile: React.FC<SlopeStabilityProfileProps> = ({
 
   // Calculate pore water pressure (u in kPa) and shear strain
   const porePressureKPa = Math.round(18 + (moisture / 100) * 42);
-  const shearDisplacementMm = isSimulatedSurge ? 16.4 : (zone.riskScore > 75 ? 8.2 : 2.1);
-  const tensionCrackDepthM = isSimulatedSurge ? 2.8 : (zone.riskScore > 75 ? 1.4 : 0.3);
+  const shearDisplacementMm = isSimulatedSurge ? 16.4 : ((zone.riskScore ?? 0) > 75 ? 8.2 : 2.1);
+  const tensionCrackDepthM = isSimulatedSurge ? 2.8 : ((zone.riskScore ?? 0) > 75 ? 1.4 : 0.3);
 
   return (
     <div className="bg-white rounded-2xl border border-[#CBD5E1] p-5 shadow-xs flex flex-col justify-between">

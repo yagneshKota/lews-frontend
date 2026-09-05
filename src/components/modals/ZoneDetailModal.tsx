@@ -77,10 +77,10 @@ export const ZoneDetailModal: React.FC<ZoneDetailModalProps> = ({
                 <span>Risk Score</span>
               </div>
               <p className="text-xl font-extrabold text-[#0F172A]">
-                {zone.riskScore}%
+                {zone.riskScore !== null ? `${zone.riskScore}%` : 'N/A'}
               </p>
               <span className="text-[10px] text-[#C2410C] font-semibold">
-                Confidence: {zone.confidence}%
+                {zone.confidence !== null ? `Model confidence: ${zone.confidence}%` : 'Confidence: Not available'}
               </span>
             </div>
 
@@ -90,10 +90,10 @@ export const ZoneDetailModal: React.FC<ZoneDetailModalProps> = ({
                 <span>Elevation & Slope</span>
               </div>
               <p className="text-xl font-extrabold text-[#0F172A]">
-                {zone.slopeAngle}°
+                {zone.slopeAngle !== null ? `${zone.slopeAngle}°` : 'N/A'}
               </p>
               <span className="text-[10px] text-[#64748B]">
-                {zone.elevation}m AMSL
+                {zone.elevation !== null ? `${zone.elevation}m AMSL` : 'Elevation N/A'}
               </span>
             </div>
 

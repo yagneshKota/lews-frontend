@@ -50,6 +50,17 @@ export function getRiskColor(level: RiskLevel): {
         accentColor: '#B91C1C',
         label: 'CRITICAL',
       };
+    case 'UNAVAILABLE':
+    default:
+      return {
+        badgeBg: 'bg-slate-100 dark:bg-slate-800',
+        badgeText: 'text-slate-500 dark:text-slate-400',
+        badgeBorder: 'border-slate-300 dark:border-slate-600',
+        fillColor: '#94A3B8',
+        strokeColor: '#64748B',
+        accentColor: '#475569',
+        label: 'UNAVAILABLE',
+      };
   }
 }
 

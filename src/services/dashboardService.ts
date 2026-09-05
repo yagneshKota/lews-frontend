@@ -1,7 +1,8 @@
 import type { District } from '../types/dashboard';
 
 // Realistic mock data for Northeast India Districts
-const DISTRICT_DATA: Record<string, District> = {
+// Note: currentRisk, confidence, riskDataStatus, environmental are overwritten by live ML pipeline in App.tsx
+const DISTRICT_DATA: Record<string, Partial<District>> = {
   tawang: {
     id: 'tawang',
     name: 'Tawang District',
@@ -1345,7 +1346,7 @@ export const AVAILABLE_DISTRICTS = [
  * Service Layer for LANDGUARD AI Dashboard.
  */
 export const dashboardService = {
-  async getDistrictData(districtId: string = 'tawang'): Promise<District> {
+  async getDistrictData(districtId: string = 'tawang'): Promise<Partial<District>> {
     await new Promise((resolve) => setTimeout(resolve, 60));
     return DISTRICT_DATA[districtId] || DISTRICT_DATA['tawang'];
   },

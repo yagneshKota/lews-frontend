@@ -31,11 +31,14 @@ export const SituationalSummary: React.FC<SituationalSummaryProps> = ({
   isSimulatedSurge = false,
 }) => {
   // Adjust calculations dynamically if the judge clicked the "Simulate Cloudburst" toggle!
-  const effectiveRisk = isSimulatedSurge ? Math.min(98, district.currentRisk + 24) : district.currentRisk;
-  const effectiveSeverity = isSimulatedSurge ? 'CRITICAL' : district.riskLevel;
+  const isDataUnavailable = district.riskDataStatus === 'UNAVAILABLE' || district.currentRisk === null;
+  const baseRisk = district.currentRisk;
+  const effectiveRisk = isSimulatedSurge && baseRisk !== null ? Math.min(98, baseRisk + 24) : baseRisk;
+  const effectiveSeverity = isSimulatedSurge && !isDataUnavailable ? 'CRITICAL' : district.riskLevel;
   const riskInfo = getRiskColor(effectiveSeverity);
-  const effectiveRainfall = isSimulatedSurge ? district.environmental.rainfall24h + 65 : district.environmental.rainfall24h;
-  const calculatedFoS = isSimulatedSurge ? 0.74 : (effectiveRisk > 70 ? 1.08 : 1.42);
+  const baseRainfall = district.environmental?.rainfall24h ?? null;
+  const effectiveRainfall = isSimulatedSurge && baseRainfall !== null ? baseRainfall + 65 : baseRainfall;
+  const calculatedFoS = isSimulatedSurge ? 0.74 : (baseRisk !== null && baseRisk > 70 ? 1.08 : 1.42);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -60,7 +63,7 @@ export const SituationalSummary: React.FC<SituationalSummaryProps> = ({
 
         <div className="flex items-baseline gap-2 mt-1">
           <span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white font-mono">
-            {effectiveRisk}%
+            {effectiveRisk !== null ? `${effectiveRisk}%` : <span className="text-2xl text-slate-400 dark:text-slate-500">N/A</span>}
           </span>
           <span className="text-[12px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
             <TrendingUp className="w-3.5 h-3.5" />
@@ -121,11 +124,16 @@ export const SituationalSummary: React.FC<SituationalSummaryProps> = ({
 
         <div className="flex items-baseline gap-2 mt-1">
           <span className="text-3xl font-black font-mono text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-            {effectiveRainfall} <span className="text-lg font-bold text-slate-500">mm</span>
+            {effectiveRainfall !== null
+              ? <>{effectiveRainfall} <span className="text-lg font-bold text-slate-500">mm</span></>
+              : <span className="text-xl text-slate-400 dark:text-slate-500">No live data</span>
+            }
           </span>
-          <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${effectiveRainfall >= 80 ? 'bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800' : 'bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'}`}>
-            {effectiveRainfall >= 80 ? 'Threshold Breached' : 'Watching'}
-          </span>
+          {effectiveRainfall !== null && (
+            <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${effectiveRainfall >= 80 ? 'bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800' : 'bg-blue-50 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'}`}>
+              {effectiveRainfall >= 80 ? 'Threshold Breached' : 'Watching'}
+            </span>
+          )}
         </div>
 
         <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-emerald-900/60 flex items-center justify-between text-[10.5px] text-slate-500 dark:text-slate-400">

@@ -362,7 +362,7 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
                     [{selectedCoordinates[0].toFixed(4)}, {selectedCoordinates[1].toFixed(4)}]
                   </p>
                   <p className="text-[11px] text-emerald-700 font-semibold mt-1">
-                    Risk Assessment: <strong>{district.currentRisk}% ({district.riskLevel})</strong>
+                    Risk Assessment: <strong>{district.currentRisk !== null ? `${district.currentRisk}%` : 'Unavailable'} ({district.riskLevel})</strong>
                   </p>
                   <p className="text-[10px] text-slate-500 mt-0.5">
                     Live Open-Meteo & Copernicus DEM Telemetry Active

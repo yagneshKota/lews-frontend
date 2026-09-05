@@ -11,7 +11,7 @@ import {
 import type { EnvironmentalData } from '../../types/dashboard';
 
 interface EnvironmentalStripProps {
-  data: EnvironmentalData;
+  data: EnvironmentalData | null;
   isSimulatedSurge?: boolean;
 }
 
@@ -19,6 +19,22 @@ export const EnvironmentalStrip: React.FC<EnvironmentalStripProps> = ({
   data,
   isSimulatedSurge = false,
 }) => {
+  if (!data) {
+    return (
+      <div className="bg-white dark:bg-[#0b1f16] rounded-2xl border border-slate-200 dark:border-emerald-800/60 p-4 shadow-xs transition-colors flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-900/60 flex items-center justify-center text-slate-400">
+          <Radio className="w-4 h-4" />
+        </div>
+        <div>
+          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">IoT Sensor Matrix</p>
+          <p className="text-[13px] font-semibold text-orange-600 dark:text-orange-400">
+            Live environmental telemetry unavailable — Open-Meteo data could not be retrieved.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const moisture = Math.min(100, data.soilMoisture + (isSimulatedSurge ? 20 : 0));
   const movement = isSimulatedSurge ? 4.8 : data.groundMovement;
   const porePressureKpa = Math.round(18 + (moisture / 100) * 42);
