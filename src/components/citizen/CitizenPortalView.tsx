@@ -125,30 +125,39 @@ export const CitizenPortalView: React.FC<CitizenPortalViewProps> = ({
 
       const env = liveRisk.environmental;
       const feat = liveRisk.features;
+      const pred = liveRisk.prediction;
 
-      setLiveFeatures(feat);
+      if (feat) {
+        setLiveFeatures(feat);
+      }
 
-      setLiveTelemetry({
-        source: liveRisk.data_sources.weather || 'Open-Meteo Free API & Open GIS',
-        rainfall_24h: env.rainfall_24h,
-        rainfall_3d: env.rainfall_3d,
-        rainfall_7d: env.rainfall_7d,
-        soil_moisture: env.soil_moisture,
-        temperature: env.temperature,
-        humidity: env.humidity,
-        wind_speed: env.wind_speed,
-        elevation_m: env.elevation_m,
-        slope_degrees: env.slope_degrees,
-      });
+      if (env) {
+        setLiveTelemetry({
+          source: liveRisk.data_sources?.weather || 'Open-Meteo Free API & Open GIS',
+          rainfall_24h: env.rainfall_24h,
+          rainfall_3d: env.rainfall_3d,
+          rainfall_7d: env.rainfall_7d,
+          soil_moisture: env.soil_moisture,
+          temperature: env.temperature,
+          humidity: env.humidity,
+          wind_speed: env.wind_speed,
+          elevation_m: env.elevation_m,
+          slope_degrees: env.slope_degrees,
+        });
+      }
 
-      setLivePrediction({
-        risk_score: liveRisk.prediction.risk_score,
-        risk_level: liveRisk.prediction.risk_level,
-        risk_tier: liveRisk.prediction.risk_tier,
-        alert_triggered: liveRisk.prediction.alert_triggered,
-        alert_message: liveRisk.prediction.alert_message,
-        source: 'live_ml_backend',
-      });
+      if (pred) {
+        setLivePrediction({
+          risk_score: pred.risk_score,
+          risk_level: pred.risk_level,
+          risk_tier: pred.risk_tier,
+          alert_triggered: pred.alert_triggered,
+          alert_message: pred.alert_message,
+          source: 'live_ml_backend',
+        });
+      } else {
+        setLivePrediction(null);
+      }
 
       setIsCalculatingML(false);
     }).catch(() => {

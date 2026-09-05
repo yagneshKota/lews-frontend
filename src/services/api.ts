@@ -57,16 +57,16 @@ export interface LiveRiskData {
     district?: string;
     state?: string;
   };
-  features: MLFeatureInput;
-  prediction: {
+  features?: MLFeatureInput | null;
+  prediction?: {
     risk_score: number;
     risk_level: number;
     risk_tier: RiskTier;
     alert_triggered: boolean;
     alert_message: string;
     model_version?: string;
-  };
-  environmental: {
+  } | null;
+  environmental?: {
     temperature: number;
     humidity: number;
     wind_speed: number;
@@ -77,15 +77,16 @@ export interface LiveRiskData {
     elevation_m: number;
     slope_degrees: number;
     aspect_degrees: number;
-  };
-  data_sources: {
-    weather: string;
-    terrain: string;
-    soil_moisture: string;
+  } | null;
+  data_sources?: {
+    weather?: string;
+    terrain?: string;
+    soil_moisture?: string;
   };
   data_timestamp: string;
   data_age_seconds: number;
-  data_status: string;
+  data_status: 'LIVE' | 'STALE' | 'UNAVAILABLE' | string;
+  message?: string;
 }
 
 export interface IncidentReportCreate {
@@ -227,146 +228,45 @@ export const apiService = {
   /**
    * Core Unified Live Risk Method:
    * Given arbitrary coordinates [lat, lng], fetches real-time Open-Meteo & Open GIS telemetry,
-   * calculates the exact 12 ML features, runs the trained ML model, and returns the live result.
+   * calculates the exact 12 ML features, runs the trained ML model on the backend, and returns the live result.
+   * If telemetry or backend is unavailable, fails safely with data_status: 'UNAVAILABLE'.
    */
   async getLiveRisk(lat: number, lng: number): Promise<LiveRiskData> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
       const res = await fetch(`${API_BASE_URL}/api/risk/live?lat=${lat}&lng=${lng}`, {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
 
-      if (res.ok) {
-        return await res.json();
+      const data = await res.json();
+      if (res.ok && data.data_status === 'LIVE') {
+        return data;
       }
-    } catch {
-      // Direct client fallback to Open-Meteo if backend unavailable
-    }
-
-    // Direct browser fallback to Open-Meteo + Copernicus DEM + Offline ML
-    try {
-      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&past_days=30&daily=precipitation_sum&hourly=soil_moisture_0_to_1cm&current=temperature_2m,relative_humidity_2m,wind_speed_10m&timezone=auto`;
-      const wRes = await fetch(weatherUrl);
-      const wData = wRes.ok ? await wRes.json() : null;
-
-      const dailyPrecip = wData?.daily?.precipitation_sum || [];
-      const pastSlice = dailyPrecip.slice(0, 31);
-
-      const r1d = pastSlice.length > 0 ? Number(pastSlice[pastSlice.length - 1] || 0) : 15.0;
-      const r3d = pastSlice.length >= 3 ? pastSlice.slice(-3).reduce((a: number, b: number) => a + b, 0) : r1d * 3;
-      const r7d = pastSlice.length >= 7 ? pastSlice.slice(-7).reduce((a: number, b: number) => a + b, 0) : r1d * 7;
-      const r14d = pastSlice.length >= 14 ? pastSlice.slice(-14).reduce((a: number, b: number) => a + b, 0) : r7d * 2;
-      const r30d = pastSlice.length >= 30 ? pastSlice.slice(-30).reduce((a: number, b: number) => a + b, 0) : r7d * 4;
-      const r7dMax = pastSlice.length >= 7 ? Math.max(...pastSlice.slice(-7)) : r1d;
-      const rRatio = r7d > 0 ? +(r3d / r7d).toFixed(3) : 0.0;
-
-      const sm1 = wData?.hourly?.soil_moisture_0_to_1cm || [];
-      const liveSm = sm1.length > 0 ? Number(sm1[sm1.length - 1] || 0.52) : 0.52;
-
-      // DEM elevation
-      const elevUrl = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`;
-      const eRes = await fetch(elevUrl);
-      const eData = eRes.ok ? await eRes.json() : null;
-      const liveElev = eData?.elevation?.[0] ? Number(eData.elevation[0]) : 1400;
-
-      const features: MLFeatureInput = {
-        elevation_m: liveElev,
-        slope_degrees: 28.0,
-        aspect_degrees: 135.0,
-        rainfall_1d_before: Number(r1d.toFixed(1)),
-        rainfall_3d_before: Number(r3d.toFixed(1)),
-        rainfall_7d_before: Number(r7d.toFixed(1)),
-        rainfall_14d_before: Number(r14d.toFixed(1)),
-        rainfall_30d_before: Number(r30d.toFixed(1)),
-        rainfall_7d_max1d: Number(r7dMax.toFixed(1)),
-        rainfall_3d_over_7d_ratio: rRatio,
-        soil_moisture: liveSm,
-        soil_moisture_available: sm1.length > 0 ? 1 : 0,
-      };
-
-      const pred = runOfflineInference(features);
-
       return {
         location: { latitude: lat, longitude: lng },
-        features,
-        prediction: {
-          risk_score: pred.risk_score,
-          risk_level: pred.risk_level,
-          risk_tier: pred.risk_tier,
-          alert_triggered: pred.alert_triggered,
-          alert_message: pred.alert_message,
-        },
-        environmental: {
-          temperature: wData?.current?.temperature_2m ?? 18,
-          humidity: wData?.current?.relative_humidity_2m ?? 80,
-          wind_speed: wData?.current?.wind_speed_10m ?? 12,
-          rainfall_24h: features.rainfall_1d_before,
-          rainfall_3d: features.rainfall_3d_before,
-          rainfall_7d: features.rainfall_7d_before,
-          soil_moisture: liveSm,
-          elevation_m: liveElev,
-          slope_degrees: 28.0,
-          aspect_degrees: 135.0,
-        },
-        data_sources: {
-          weather: 'Open-Meteo Direct',
-          terrain: 'Open-Meteo Copernicus DEM',
-          soil_moisture: 'Open-Meteo IFS',
-        },
-        data_timestamp: new Date().toISOString(),
-        data_age_seconds: 0,
-        data_status: 'PARTIAL',
-      };
-    } catch {
-      // Ultimate fallback
-      const fallbackFeat: MLFeatureInput = {
-        elevation_m: 1200,
-        slope_degrees: 25,
-        aspect_degrees: 135,
-        rainfall_1d_before: 20,
-        rainfall_3d_before: 55,
-        rainfall_7d_before: 110,
-        rainfall_14d_before: 180,
-        rainfall_30d_before: 310,
-        rainfall_7d_max1d: 35,
-        rainfall_3d_over_7d_ratio: 0.5,
-        soil_moisture: 0.525,
-        soil_moisture_available: 0,
-      };
-      const pred = runOfflineInference(fallbackFeat);
-      return {
-        location: { latitude: lat, longitude: lng },
-        features: fallbackFeat,
-        prediction: {
-          risk_score: pred.risk_score,
-          risk_level: pred.risk_level,
-          risk_tier: pred.risk_tier,
-          alert_triggered: pred.alert_triggered,
-          alert_message: pred.alert_message,
-        },
-        environmental: {
-          temperature: 18,
-          humidity: 80,
-          wind_speed: 12,
-          rainfall_24h: 20,
-          rainfall_3d: 55,
-          rainfall_7d: 110,
-          soil_moisture: 0.525,
-          elevation_m: 1200,
-          slope_degrees: 25,
-          aspect_degrees: 135,
-        },
-        data_sources: {
-          weather: 'Offline Telemetry Cache',
-          terrain: 'DEM Baseline',
-          soil_moisture: 'Standard Mean',
-        },
+        features: null,
+        prediction: null,
+        environmental: null,
+        data_sources: {},
         data_timestamp: new Date().toISOString(),
         data_age_seconds: 0,
         data_status: 'UNAVAILABLE',
+        message: data.message || 'Live risk assessment temporarily unavailable from external telemetry providers.',
+      };
+    } catch {
+      return {
+        location: { latitude: lat, longitude: lng },
+        features: null,
+        prediction: null,
+        environmental: null,
+        data_sources: {},
+        data_timestamp: new Date().toISOString(),
+        data_age_seconds: 0,
+        data_status: 'UNAVAILABLE',
+        message: 'Live risk assessment temporarily unavailable. Check network connectivity or telemetry providers.',
       };
     }
   },
