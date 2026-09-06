@@ -64,10 +64,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div>
                 <div className="flex items-center gap-1.5">
                   <h1 className="font-extrabold text-[15px] tracking-tight text-white">
-                    BHU-GUARD
+                    GeoAlert
                   </h1>
                   <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-emerald-800 text-emerald-200 border border-emerald-600/40">
-                    GeoAlert
+                    Live Grid
                   </span>
                 </div>
                 <p className="text-[10px] text-emerald-400/80 font-mono leading-tight">
@@ -146,7 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
               <div>
                 <p className="text-[11px] font-bold text-white leading-tight">
-                  GSI Sentinel-1 InSAR
+                  NASA POWER & OpenTopoData
                 </p>
                 <p className="text-[9.5px] text-emerald-400/80 leading-tight font-mono">
                   ML Pipeline Active

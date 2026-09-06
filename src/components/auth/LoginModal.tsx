@@ -114,7 +114,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </span>
               </div>
               <h2 className="text-xl font-black tracking-tight text-white mt-1">
-                BHU-GUARD Access Portal
+                GeoAlert Access Portal
               </h2>
               <p className="text-xs text-emerald-200/90">
                 Select your role to access customized landslide tools & protocols
@@ -242,7 +242,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
               <div className="mt-3 pt-2.5 border-t border-purple-900/40 space-y-1">
                 <p className="text-[10px] text-slate-300 leading-snug">
-                  • InSAR sensor calibration
+                  • Open GIS & Satellite Calibration
                 </p>
                 <p className="text-[10px] text-slate-300 leading-snug">
                   • ML inference thresholds

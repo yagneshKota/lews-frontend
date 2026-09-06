@@ -23,8 +23,6 @@ export const AdminConfigModal: React.FC<AdminConfigModalProps> = ({
   const [alphaParam, setAlphaParam] = useState(18.5);
   const [betaParam, setBetaParam] = useState(0.42);
   const [porePressureLimit, setPorePressureLimit] = useState(45);
-  const [inclinometerAlarmMm, setInclinometerAlarmMm] = useState(2.0);
-  const [insarSyncFrequencyMin] = useState(15);
   const [capWebhookUrl, setCapWebhookUrl] = useState('https://cap.ndma.gov.in/api/v2/alerts/dispatch');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -130,7 +128,7 @@ export const AdminConfigModal: React.FC<AdminConfigModalProps> = ({
               <span>Geotechnical IoT Sensor Alarm Triggers</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0]">
+            <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0]">
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold text-[#334155]">
                   <span>Critical Pore Pressure (u-critical)</span>
@@ -146,41 +144,24 @@ export const AdminConfigModal: React.FC<AdminConfigModalProps> = ({
                 />
                 <span className="text-[10px] text-[#64748B] block">Triggers Red Shear Alert</span>
               </div>
-
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs font-bold text-[#334155]">
-                  <span>Inclinometer Shear Alarm Rate</span>
-                  <span className="font-mono text-orange-700">{inclinometerAlarmMm} mm/hr</span>
-                </div>
-                <input
-                  type="range"
-                  min={0.5}
-                  max={5.0}
-                  step={0.1}
-                  value={inclinometerAlarmMm}
-                  onChange={(e) => setInclinometerAlarmMm(Number(e.target.value))}
-                  className="w-full accent-orange-600"
-                />
-                <span className="text-[10px] text-[#64748B] block">Borehole displacement limit</span>
-              </div>
             </div>
           </div>
 
-          {/* 3. InSAR & NDMA Webhook Gateway */}
+          {/* 3. Open GIS & NDMA Webhook Gateway */}
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-[#0F172A]">
               <Satellite className="w-4 h-4 text-purple-700" />
-              <span>InSAR Telemetry & NDMA CAP Broadcast API</span>
+              <span>NASA POWER, Copernicus DEM & NDMA CAP Broadcast API</span>
             </div>
 
             <div className="space-y-3 p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-xs">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-bold text-[#0F172A]">Sentinel-1 InSAR Satellite Ingest Sync</p>
-                  <p className="text-[10px] text-[#64748B]">Interferometric SAR deformation frequency</p>
+                  <p className="font-bold text-[#0F172A]">Meteorological & Elevation Telemetry Ingest</p>
+                  <p className="text-[10px] text-[#64748B]">Real-time NASA POWER & OpenTopoData telemetry grid</p>
                 </div>
                 <span className="font-mono font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg">
-                  Every {insarSyncFrequencyMin} mins
+                  LIVE Active
                 </span>
               </div>
 

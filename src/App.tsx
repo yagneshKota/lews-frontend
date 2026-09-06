@@ -317,7 +317,7 @@ export function App() {
         environmental: environmentalData,
         explainability,
         riskZones: dynamicZones,
-        fieldReports: dbReports.length > 0 ? dbReports : (base?.fieldReports || []),
+        fieldReports: dbReports.length > 0 ? [...dbReports, ...(base?.fieldReports || [])] : (base?.fieldReports || []),
         recommendedActions: base?.recommendedActions || [],
         alerts: base?.alerts || (isLive && livePred
           ? [
@@ -417,6 +417,10 @@ export function App() {
     showToast(`Action status updated to "${status}"`);
   };
 
+  const resetNavToDashboard = useCallback(() => {
+    setActiveNav(currentUser.role === 'citizen' ? 'citizen-safety' : 'dashboard');
+  }, [currentUser.role]);
+
   const isLight = theme === 'light';
 
   if (loading || !districtData) {
@@ -431,7 +435,7 @@ export function App() {
           </div>
           <div>
             <p className="text-base font-extrabold tracking-tight">
-              BHU-GUARD AI &bull; GeoAlert Operations Hub
+              GeoAlert AI &bull; Operations Hub
             </p>
             <p className="text-xs text-emerald-600 dark:text-emerald-400/80 font-mono mt-1">
               Loading backend telemetry for {selectedLocation.name}, {selectedLocation.state}...
@@ -709,7 +713,10 @@ export function App() {
 
       <AlertsDrawer
         isOpen={isAlertsDrawerOpen}
-        onClose={() => setIsAlertsDrawerOpen(false)}
+        onClose={() => {
+          setIsAlertsDrawerOpen(false);
+          resetNavToDashboard();
+        }}
         alerts={districtData.alerts}
         onSelectAlert={(_alt) => {
           showToast(`Inspecting alert: ${_alt.title}`);
@@ -718,7 +725,10 @@ export function App() {
 
       <ZonesDrawer
         isOpen={isZonesDrawerOpen}
-        onClose={() => setIsZonesDrawerOpen(false)}
+        onClose={() => {
+          setIsZonesDrawerOpen(false);
+          resetNavToDashboard();
+        }}
         zones={districtData.riskZones}
         onSelectZone={(zone) => {
           setSelectedZone(zone);
@@ -728,14 +738,20 @@ export function App() {
 
       <RoadsDrawer
         isOpen={isRoadsDrawerOpen}
-        onClose={() => setIsRoadsDrawerOpen(false)}
+        onClose={() => {
+          setIsRoadsDrawerOpen(false);
+          resetNavToDashboard();
+        }}
         roads={districtData.roads}
       />
 
       <EmergencyResponseModal
         district={districtData}
         isOpen={isEmergencyResponseOpen}
-        onClose={() => setIsEmergencyResponseOpen(false)}
+        onClose={() => {
+          setIsEmergencyResponseOpen(false);
+          resetNavToDashboard();
+        }}
       />
 
       <ActionDetailModal
@@ -748,7 +764,10 @@ export function App() {
       <FieldReportsModal
         reports={districtData.fieldReports}
         isOpen={isFieldReportsOpen}
-        onClose={() => setIsFieldReportsOpen(false)}
+        onClose={() => {
+          setIsFieldReportsOpen(false);
+          resetNavToDashboard();
+        }}
         onReportDeleted={refreshLocationData}
       />
 

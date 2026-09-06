@@ -60,13 +60,16 @@ const MapResizeController: React.FC<{ isFullscreen: boolean }> = ({ isFullscreen
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);
 
+    map.invalidateSize();
+    const raf = requestAnimationFrame(() => map.invalidateSize());
     const timer1 = setTimeout(() => map.invalidateSize(), 50);
-    const timer2 = setTimeout(() => map.invalidateSize(), 200);
-    const timer3 = setTimeout(() => map.invalidateSize(), 500);
+    const timer2 = setTimeout(() => map.invalidateSize(), 150);
+    const timer3 = setTimeout(() => map.invalidateSize(), 350);
 
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
+      cancelAnimationFrame(raf);
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);
@@ -173,6 +176,17 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
   const toggleLayer = (layerKey: keyof typeof visibleLayers) => {
     setVisibleLayers((prev) => ({ ...prev, [layerKey]: !prev[layerKey] }));
   };
+
+  useEffect(() => {
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isFullscreen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -303,9 +317,17 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
           </div>
 
           <button
-            onClick={() => setIsFullscreen(!isFullscreen)}
+            onClick={() => {
+              setIsFullscreen((prev) => {
+                const next = !prev;
+                setTimeout(() => {
+                  window.dispatchEvent(new Event('resize'));
+                }, 50);
+                return next;
+              });
+            }}
             title={isFullscreen ? 'Exit Fullscreen (Esc)' : 'Expand Map Fullscreen'}
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg shadow-2xs transition-colors border ${isFullscreen
+            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg shadow-2xs transition-colors border cursor-pointer ${isFullscreen
                 ? 'bg-red-600 hover:bg-red-500 text-white border-red-500 ring-2 ring-red-400/30'
                 : 'text-slate-700 dark:text-slate-200 bg-white dark:bg-[#0c261c] hover:bg-slate-50 dark:hover:bg-[#123829] border-slate-300 dark:border-emerald-700/60'
               }`}

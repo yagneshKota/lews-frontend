@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import type { FieldReport } from '../../types/dashboard';
 import { getRiskColor } from '../../utils/riskUtils';
-import { apiService } from '../../services/api';
+import { apiService, getFullImageUrl } from '../../services/api';
 
 interface FieldReportsModalProps {
   reports: FieldReport[];
@@ -155,7 +155,7 @@ export const FieldReportsModal: React.FC<FieldReportsModalProps> = ({
                           </span>
                           <button
                             type="button"
-                            onClick={() => setSelectedImageModal(report.imageUrl!)}
+                            onClick={() => setSelectedImageModal(getFullImageUrl(report.imageUrl))}
                             className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-semibold"
                           >
                             <Maximize2 className="w-3 h-3" />
@@ -163,11 +163,11 @@ export const FieldReportsModal: React.FC<FieldReportsModalProps> = ({
                           </button>
                         </div>
                         <div
-                          onClick={() => setSelectedImageModal(report.imageUrl!)}
+                          onClick={() => setSelectedImageModal(getFullImageUrl(report.imageUrl))}
                           className="relative group cursor-pointer w-full max-w-xs h-36 rounded-xl overflow-hidden border border-slate-300 dark:border-emerald-700 shadow-sm"
                         >
                           <img
-                            src={report.imageUrl}
+                            src={getFullImageUrl(report.imageUrl) || undefined}
                             alt="Geotagged field hazard"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                           />

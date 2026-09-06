@@ -71,35 +71,7 @@ export const EnvironmentalStrip: React.FC<EnvironmentalStripProps> = ({
           </div>
         </div>
 
-        {/* 2. Borehole Inclinometer — No IoT sensor data available */}
-        <div className="flex items-center gap-2.5 px-3 border-r border-slate-100 dark:border-emerald-900/50 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400">
-            <Activity className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 leading-tight">
-              Inclinometer Shear Rate
-            </p>
-            <p className="text-[13px] font-extrabold text-slate-500 dark:text-slate-400 leading-tight font-mono">
-              No Sensor <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">Offline</span>
-            </p>
-          </div>
-        </div>
 
-        {/* 3. InSAR Satellite Displacement — static reference only, not live telemetry */}
-        <div className="flex items-center gap-2.5 px-3 border-r border-slate-100 dark:border-emerald-900/50 shrink-0 hidden sm:flex">
-          <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400">
-            <Satellite className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 leading-tight">
-              InSAR Satellite LOS
-            </p>
-            <p className="text-[13px] font-extrabold text-slate-500 dark:text-slate-400 leading-tight font-mono">
-              No Data <span className="text-[10px] text-slate-400 dark:text-slate-500">Unavailable</span>
-            </p>
-          </div>
-        </div>
 
         {/* 4. Ambient Temperature (Open-Meteo API) */}
         <div className="flex items-center gap-2.5 px-3 border-r border-slate-100 dark:border-emerald-900/50 shrink-0 hidden md:flex">

@@ -220,7 +220,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm md:text-lg font-black tracking-tight flex items-center gap-1.5">
-                <span className={isLight ? 'text-slate-900' : 'text-white'}>BHU-GUARD AI</span>
+                <span className={isLight ? 'text-slate-900' : 'text-white'}>GeoAlert AI</span>
                 <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-600 text-white uppercase font-mono">
                   GeoAlert
                 </span>

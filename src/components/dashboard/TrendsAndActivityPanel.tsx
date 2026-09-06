@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type { Alert, FieldReport, TrendPoint } from '../../types/dashboard';
 import { getRiskColor } from '../../utils/riskUtils';
+import { getFullImageUrl } from '../../services/api';
 
 interface TrendsAndActivityPanelProps {
   trendData: TrendPoint[];
@@ -303,7 +304,7 @@ export const TrendsAndActivityPanel: React.FC<TrendsAndActivityPanelProps> = ({
                 <div className="flex items-center gap-2.5 min-w-0">
                   {report.imageUrl ? (
                     <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-300 dark:border-emerald-700 shrink-0 bg-slate-200 dark:bg-emerald-950">
-                      <img src={report.imageUrl} alt="Hazard" className="w-full h-full object-cover" />
+                      <img src={getFullImageUrl(report.imageUrl) || undefined} alt="Hazard" className="w-full h-full object-cover" />
                     </div>
                   ) : (
                     <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">

@@ -1,6 +1,6 @@
 /**
  * ==============================================================================
- * BHU-GUARD GeoAlert - Central API Service Layer (SIH Problem Statement 26001)
+ * GeoAlert - Central API Service Layer (SIH Problem Statement 26001)
  * ==============================================================================
  * 
  * Centralizes backend communication, open-source GIS telemetry, and ML inference
@@ -18,6 +18,15 @@ export const API_BASE_URL =
   (import.meta as any).env?.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 
 export const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws');
+
+export function getFullImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  const cleanPath = url.startsWith('/') ? url : `/${url}`;
+  return `${API_BASE_URL}${cleanPath}`;
+}
 
 // ------------------------------------------------------------------------------
 // Type Definitions
