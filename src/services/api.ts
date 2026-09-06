@@ -189,6 +189,7 @@ function runOfflineInference(features: MLFeatureInput): MLPredictionResult {
 // existing Promise instead of creating a second backend request.
 // ------------------------------------------------------------------------------
 const _liveRiskInFlight = new Map<string, Promise<LiveRiskData>>();
+const _reverseGeocodeCache = new Map<string, string>();
 
 function _liveRiskUnavailable(lat: number, lng: number, message: string): LiveRiskData {
   return {
@@ -629,6 +630,48 @@ export const apiService = {
       risk_tier: loc.riskTier,
       timestamp: new Date().toISOString(),
     }));
+  },
+
+  /**
+   * Reverse Geocode coordinates to place name
+   * Caches results in memory using 4-decimal place key.
+   */
+  async reverseGeocode(lat: number, lng: number): Promise<string> {
+    const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    if (_reverseGeocodeCache.has(cacheKey)) {
+      return _reverseGeocodeCache.get(cacheKey)!;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/gis/reverse?lat=${lat}&lng=${lng}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.place_name) {
+          _reverseGeocodeCache.set(cacheKey, data.place_name);
+          return data.place_name;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    const fallbackName = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    _reverseGeocodeCache.set(cacheKey, fallbackName);
+    return fallbackName;
+  },
+
+  /**
+   * Delete an incident report by ID
+   */
+  async deleteReport(reportId: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/reports/${reportId}`, {
+        method: 'DELETE',
+      });
+      return response.ok || response.status === 204;
+    } catch {
+      return false;
+    }
   },
 
   /**

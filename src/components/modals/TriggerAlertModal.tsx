@@ -41,7 +41,7 @@ export const TriggerAlertModal: React.FC<TriggerAlertModalProps> = ({
     if (zone) {
       setSeverity(zone.riskLevel);
       setCustomMessage(
-        `LANDGUARD AI WARNING: High landslide threat detected in ${zone.name}. Slope movement & heavy precipitation indicate imminent slope instability within ${zone.predictionWindow}. Residents in lower terraces advised to move to designated community shelters immediately.`
+        `GeoAlert WARNING: High landslide threat detected in ${zone.name}. Slope movement & heavy precipitation indicate imminent slope instability within ${zone.predictionWindow}. Residents in lower terraces advised to move to designated community shelters immediately.`
       );
       setBroadcastResult(null);
     }

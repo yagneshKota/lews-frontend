@@ -9,24 +9,56 @@ import {
   ExternalLink,
   MapPin,
   Maximize2,
+  Trash2,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import type { FieldReport } from '../../types/dashboard';
 import { getRiskColor } from '../../utils/riskUtils';
+import { apiService } from '../../services/api';
 
 interface FieldReportsModalProps {
   reports: FieldReport[];
   isOpen: boolean;
   onClose: () => void;
+  onReportDeleted?: () => void;
 }
 
 export const FieldReportsModal: React.FC<FieldReportsModalProps> = ({
   reports,
   isOpen,
   onClose,
+  onReportDeleted,
 }) => {
   const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null);
+  const [confirmDeleteReport, setConfirmDeleteReport] = useState<FieldReport | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [localReports, setLocalReports] = useState<FieldReport[]>(reports);
+
+  React.useEffect(() => {
+    setLocalReports(reports);
+  }, [reports]);
 
   if (!isOpen) return null;
+
+  const handleDeleteConfirm = async () => {
+    if (!confirmDeleteReport) return;
+    setIsDeleting(true);
+    try {
+      const success = await apiService.deleteReport(confirmDeleteReport.id);
+      if (success) {
+        setLocalReports((prev) => prev.filter((r) => r.id !== confirmDeleteReport.id));
+        if (onReportDeleted) {
+          onReportDeleted();
+        }
+      }
+    } catch {
+      // Handle error
+    } finally {
+      setIsDeleting(false);
+      setConfirmDeleteReport(null);
+    }
+  };
 
   return (
     <>
@@ -64,12 +96,12 @@ export const FieldReportsModal: React.FC<FieldReportsModalProps> = ({
 
           {/* List Body */}
           <div className="p-6 overflow-y-auto space-y-4">
-            {reports.length === 0 ? (
+            {localReports.length === 0 ? (
               <div className="text-center py-10 text-slate-500 dark:text-slate-400 text-xs">
                 No ground field reports logged yet for this location.
               </div>
             ) : (
-              reports.map((report) => {
+              localReports.map((report) => {
                 const riskInfo = getRiskColor(report.severity);
 
                 return (
@@ -93,10 +125,20 @@ export const FieldReportsModal: React.FC<FieldReportsModalProps> = ({
                         </span>
                       </div>
 
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 shrink-0 font-mono">
-                        <Clock className="w-3 h-3" />
-                        {report.timeAgo}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 font-mono">
+                          <Clock className="w-3 h-3" />
+                          {report.timeAgo}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteReport(report)}
+                          title="Delete Incident Report"
+                          className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/60 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
+                      </div>
                     </div>
 
                     <p className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed bg-white dark:bg-[#0b2118] p-3 rounded-lg border border-slate-200/80 dark:border-emerald-900/50">
@@ -177,6 +219,60 @@ export const FieldReportsModal: React.FC<FieldReportsModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Safe Dialog */}
+      {confirmDeleteReport && (
+        <div
+          onClick={() => setConfirmDeleteReport(null)}
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#0c2219] text-slate-900 dark:text-white rounded-2xl border border-red-500/40 shadow-2xl max-w-md w-full p-6 space-y-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold">Delete this incident report?</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  This action will permanently delete report "{confirmDeleteReport.hazardType}" from the database.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteReport(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-emerald-950 dark:hover:bg-emerald-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-emerald-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5 shadow-md transition-colors disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox photo modal */}
       {selectedImageModal && (

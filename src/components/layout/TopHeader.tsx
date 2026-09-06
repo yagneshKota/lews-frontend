@@ -110,17 +110,18 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     onShowToast('Acquiring live browser GPS coordinates...');
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         try {
           const { latitude, longitude } = pos.coords;
           const lat = Number(latitude.toFixed(4));
           const lng = Number(longitude.toFixed(4));
+          const placeName = await apiService.reverseGeocode(lat, lng);
 
           const gpsLoc: NortheastLocation = {
             id: `gps-${lat}-${lng}`,
-            name: `Live GPS Position`,
-            state: 'India (GPS)',
-            district: `[${lat}, ${lng}]`,
+            name: placeName,
+            state: 'Live GPS Location',
+            district: placeName,
             coordinates: [lat, lng],
             elevation_m: 1000,
             slope_degrees: 25,
@@ -131,7 +132,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             soil_moisture: 0.52,
             riskScore: 50,
             riskTier: 'MEDIUM',
-            description: `Live GPS coordinate site at [${lat}, ${lng}] evaluated with dynamic Open-Meteo & Copernicus DEM telemetry.`,
+            description: `Live GPS location (${placeName}) evaluated with dynamic Open-Meteo & Copernicus DEM telemetry.`,
             evacuationCenter: 'Nearest Community Hall / Safe Zone',
             shelterDistance: '1.0 km away',
             helpline: '1078 (National Disaster Helpline)',
@@ -140,7 +141,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           };
 
           onSelectLocation(gpsLoc);
-          onShowToast(`📍 Live GPS acquired: [${lat}, ${lng}]. Calculating live ML risk...`);
+          onShowToast(`📍 Live GPS acquired: ${placeName}. Calculating live ML risk...`);
         } catch {
           onShowToast('Could not process live GPS coordinates.');
         } finally {
@@ -249,7 +250,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 setSearchQuery(e.target.value);
                 setIsSearchOpen(true);
               }}
-              placeholder={`Search any place or coordinates (e.g. Pune, Darjeeling, Dehradun, Gangtok, 27.58, 91.86)...`}
+              placeholder="Search any place or coordinates"
               className={`w-full pl-9 pr-28 py-2 rounded-2xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all shadow-inner ${
                 isLight
                   ? 'bg-slate-100/90 border border-slate-300 text-slate-900 placeholder:text-slate-500 hover:border-emerald-500'

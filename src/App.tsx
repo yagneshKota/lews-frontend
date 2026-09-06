@@ -597,12 +597,13 @@ export function App() {
                     onSelectZone={(zone) => setSelectedZone(zone)}
                     onTriggerAlertModal={handleOpenTriggerAlert}
                     selectedCoordinates={selectedLocation.coordinates}
-                    onMapClick={(lat, lng) => {
+                    onMapClick={async (lat, lng) => {
+                      const placeName = await apiService.reverseGeocode(lat, lng);
                       const mapLoc: NortheastLocation = {
-                        id: `map-${lat}-${lng}`,
-                        name: `Selected Coordinate Pin`,
-                        state: 'India (GIS Map)',
-                        district: `[${lat.toFixed(4)}, ${lng.toFixed(4)}]`,
+                        id: `map-${lat.toFixed(4)}-${lng.toFixed(4)}`,
+                        name: placeName,
+                        state: 'GIS Map Location',
+                        district: placeName,
                         coordinates: [lat, lng],
                         elevation_m: districtData.environmental?.rainfall24h ? 1200 : 1000,
                         slope_degrees: 25,
@@ -613,7 +614,7 @@ export function App() {
                         soil_moisture: 0.52,
                         riskScore: 50,
                         riskTier: 'MEDIUM',
-                        description: `User-selected coordinate on GIS map at [${lat.toFixed(4)}, ${lng.toFixed(4)}] evaluated dynamically with Open-Meteo & Copernicus DEM.`,
+                        description: `User-selected location (${placeName}) evaluated dynamically with Open-Meteo & Copernicus DEM.`,
                         evacuationCenter: 'Nearest Community Safe Zone',
                         shelterDistance: '1.2 km away',
                         helpline: '1078 (Disaster Toll-Free)',
@@ -621,7 +622,7 @@ export function App() {
                         populationAtRisk: 600,
                       };
                       setSelectedLocation(mapLoc);
-                      showToast(`📍 Selected site [${lat.toFixed(4)}, ${lng.toFixed(4)}]. Calculating live ML risk...`);
+                      showToast(`📍 Selected site: ${placeName}. Calculating live ML risk...`);
                     }}
                   />
 
@@ -748,6 +749,7 @@ export function App() {
         reports={districtData.fieldReports}
         isOpen={isFieldReportsOpen}
         onClose={() => setIsFieldReportsOpen(false)}
+        onReportDeleted={refreshLocationData}
       />
 
       <AdminConfigModal

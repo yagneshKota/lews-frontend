@@ -1343,7 +1343,7 @@ export const AVAILABLE_DISTRICTS = [
 ];
 
 /**
- * Service Layer for LANDGUARD AI Dashboard.
+ * Service Layer for GeoAlert Dashboard.
  */
 export const dashboardService = {
   async getDistrictData(districtId: string = 'tawang'): Promise<Partial<District>> {
