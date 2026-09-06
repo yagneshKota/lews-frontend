@@ -28,7 +28,7 @@ export const EnvironmentalStrip: React.FC<EnvironmentalStripProps> = ({
         <div>
           <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">IoT Sensor Matrix</p>
           <p className="text-[13px] font-semibold text-orange-600 dark:text-orange-400">
-            Live environmental telemetry unavailable — Open-Meteo data could not be retrieved.
+            Live environmental telemetry unavailable — NASA POWER / Open Topo Data could not be retrieved.
           </p>
         </div>
       </div>

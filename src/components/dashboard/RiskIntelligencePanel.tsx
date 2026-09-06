@@ -46,11 +46,10 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
         </div>
 
         <span
-          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
-            isUnavailable
+          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${isUnavailable
               ? 'bg-slate-100 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
               : `${riskInfo.badgeBg} ${riskInfo.badgeText} ${riskInfo.badgeBorder}`
-          }`}
+            }`}
         >
           {isUnavailable ? 'DATA UNAVAILABLE' : district.riskLevel}
         </span>

@@ -54,7 +54,7 @@ export const RainfallThresholdChart: React.FC<RainfallThresholdChartProps> = ({
 
   const active24h = currentRainfall24h + (isSimulatedSurge ? 65 : 0);
 
-  // Empirical GSI/LEWS I-D Threshold Curve Data: I = 18.5 * D^(-0.42)
+  // Empirical GSI/GeoAlert I-D Threshold Curve Data: I = 18.5 * D^(-0.42)
   // Generating curve points for Duration (1h to 72h)
   const thresholdData = [
     { duration: '1h', dVal: 1, criticalThreshold: 45.0, warningThreshold: 32.0, eventRainfall: 14 },

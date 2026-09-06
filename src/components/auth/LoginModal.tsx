@@ -44,8 +44,8 @@ export const PRESET_USERS: Record<UserRole, UserProfile> = {
     name: 'Admin',
     role: 'admin',
     designation: 'System & Model Administrator',
-    department: 'GSI & LEWS Control Grid',
-    district: 'National LEWS Network',
+    department: 'GSI & GeoAlert Control Grid',
+    district: 'National GeoAlert Network',
     phone: 'Admin ID: AD-NE',
     avatarInitials: 'AD',
     badge: 'Admin',
@@ -107,7 +107,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950 font-mono tracking-wide">
-                  LEWS Disaster Ops
+                  GeoAlert Disaster Ops
                 </span>
                 <span className="text-[11px] text-emerald-200 font-medium">
                   Landslide Early Warning
@@ -303,7 +303,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span>LightGBM Model &bull; Postgre LEWS Schema &bull; 8 Northeast States</span>
+              <span>LightGBM Model &bull; Postgre GeoAlert Schema &bull; 8 Northeast States</span>
             </div>
             <span className="font-mono text-emerald-400 text-[10px]">Ready</span>
           </div>

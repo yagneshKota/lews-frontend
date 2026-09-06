@@ -221,7 +221,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               <h1 className="text-sm md:text-lg font-black tracking-tight flex items-center gap-1.5">
                 <span className={isLight ? 'text-slate-900' : 'text-white'}>BHU-GUARD AI</span>
                 <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-600 text-white uppercase font-mono">
-                  LEWS
+                  GeoAlert
                 </span>
               </h1>
               <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-700 font-mono">

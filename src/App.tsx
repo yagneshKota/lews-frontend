@@ -151,7 +151,10 @@ export function App() {
       setLiveRiskData(liveRisk);
       const liveEnv = liveRisk.environmental;
       const livePred = liveRisk.prediction;
-      const isLive = liveRisk.data_status === 'LIVE' && livePred != null && liveEnv != null;
+      const isLive =
+        liveRisk.data_status !== 'UNAVAILABLE' &&
+        livePred != null &&
+        liveEnv != null;
 
       if (isLive && livePred && liveEnv) {
         setCurrentMLPrediction({
@@ -176,22 +179,22 @@ export function App() {
         ? livePred.risk_tier === 'CRITICAL'
           ? 'CRITICAL'
           : livePred.risk_tier === 'HIGH'
-          ? 'HIGH'
-          : livePred.risk_tier === 'MEDIUM'
-          ? 'WATCH'
-          : 'SAFE'
+            ? 'HIGH'
+            : livePred.risk_tier === 'MEDIUM'
+              ? 'WATCH'
+              : 'SAFE'
         : 'UNAVAILABLE';
 
       // --- Environmental data from live telemetry only ---
       const environmentalData: import('./types/dashboard').EnvironmentalData | null = isLive && liveEnv
         ? {
-            rainfall24h: liveEnv.rainfall_24h,
-            soilMoisture: Math.round(liveEnv.soil_moisture * 100),
-            temperature: liveEnv.temperature,
-            groundMovement: null, // No IoT inclinometer data from Open-Meteo — never fabricate
-            humidity: liveEnv.humidity,
-            windSpeed: liveEnv.wind_speed,
-          }
+          rainfall24h: liveEnv.rainfall_24h,
+          soilMoisture: liveEnv.soil_moisture != null ? Math.round(liveEnv.soil_moisture * 100) : 0,
+          temperature: liveEnv.temperature,
+          groundMovement: null, // No IoT inclinometer data from Open-Meteo — never fabricate
+          humidity: liveEnv.humidity,
+          windSpeed: liveEnv.wind_speed,
+        }
         : null;
 
       // --- Risk zones: null riskScore/confidence when no live prediction ---
@@ -252,45 +255,45 @@ export function App() {
       // --- Explainability: only from real live data ---
       const explainability: import('./types/dashboard').RiskFactorContribution[] = isLive && liveEnv
         ? [
-            {
-              factor: 'Antecedent Precipitation (Open-Meteo)',
-              percentage: 36,
-              metricValue: `${liveEnv.rainfall_24h} mm / 24h`,
-              category: 'rainfall',
-              impact: liveEnv.rainfall_24h > 60 ? 'high' : 'moderate',
-            },
-            {
-              factor: 'Volumetric Soil Moisture (Open-Meteo ECMWF IFS)',
-              percentage: 28,
-              metricValue: `${Math.round(liveEnv.soil_moisture * 100)}% Saturation`,
-              category: 'soil',
-              impact: liveEnv.soil_moisture > 0.70 ? 'high' : 'moderate',
-            },
-            {
-              factor: 'Terrain Slope Gradient (Copernicus DEM)',
-              percentage: 24,
-              metricValue: `${liveEnv.slope_degrees}° Angle`,
-              category: 'slope',
-              impact: liveEnv.slope_degrees > 35 ? 'high' : 'moderate',
-            },
-            {
-              factor: 'Historical Landslide Susceptibility (Location)',
-              percentage: 12,
-              metricValue: `${selectedLocation.name} region`,
-              category: 'historical',
-              impact: 'moderate',
-            },
-          ]
+          {
+            factor: 'Antecedent Precipitation (Open-Meteo)',
+            percentage: 36,
+            metricValue: `${liveEnv.rainfall_24h} mm / 24h`,
+            category: 'rainfall',
+            impact: liveEnv.rainfall_24h > 60 ? 'high' : 'moderate',
+          },
+          {
+            factor: 'Volumetric Soil Moisture (Open-Meteo ECMWF IFS)',
+            percentage: 28,
+            metricValue: `${Math.round((liveEnv.soil_moisture ?? 0) * 100)}% Saturation`,
+            category: 'soil',
+            impact: (liveEnv.soil_moisture ?? 0) > 0.70 ? 'high' : 'moderate',
+          },
+          {
+            factor: 'Terrain Slope Gradient (Copernicus DEM)',
+            percentage: 24,
+            metricValue: `${liveEnv.slope_degrees}° Angle`,
+            category: 'slope',
+            impact: liveEnv.slope_degrees > 35 ? 'high' : 'moderate',
+          },
+          {
+            factor: 'Historical Landslide Susceptibility (Location)',
+            percentage: 12,
+            metricValue: `${selectedLocation.name} region`,
+            category: 'historical',
+            impact: 'moderate',
+          },
+        ]
         : [];
 
       // --- Trend: only from real live data; fallback to empty ---
       const trend24h: import('./types/dashboard').TrendPoint[] = isLive && livePred && liveEnv
         ? [
-            { time: '6h ago', risk: Math.max(5, Math.round(livePred.risk_score * 100) - 18), rainfall: Math.round(liveEnv.rainfall_24h * 0.4), threshold: 70 },
-            { time: '4h ago', risk: Math.max(10, Math.round(livePred.risk_score * 100) - 12), rainfall: Math.round(liveEnv.rainfall_24h * 0.6), threshold: 70 },
-            { time: '2h ago', risk: Math.max(15, Math.round(livePred.risk_score * 100) - 6), rainfall: Math.round(liveEnv.rainfall_24h * 0.8), threshold: 70 },
-            { time: 'Now', risk: Math.round(livePred.risk_score * 100), rainfall: liveEnv.rainfall_24h, threshold: 70 },
-          ]
+          { time: '6h ago', risk: Math.max(5, Math.round(livePred.risk_score * 100) - 18), rainfall: Math.round(liveEnv.rainfall_24h * 0.4), threshold: 70 },
+          { time: '4h ago', risk: Math.max(10, Math.round(livePred.risk_score * 100) - 12), rainfall: Math.round(liveEnv.rainfall_24h * 0.6), threshold: 70 },
+          { time: '2h ago', risk: Math.max(15, Math.round(livePred.risk_score * 100) - 6), rainfall: Math.round(liveEnv.rainfall_24h * 0.8), threshold: 70 },
+          { time: 'Now', risk: Math.round(livePred.risk_score * 100), rainfall: liveEnv.rainfall_24h, threshold: 70 },
+        ]
         : base?.trend24h || [];
 
       const fullDistrict: import('./types/dashboard').District = {
@@ -318,20 +321,20 @@ export function App() {
         recommendedActions: base?.recommendedActions || [],
         alerts: base?.alerts || (isLive && livePred
           ? [
-              {
-                id: `alt-${selectedLocation.id}-01`,
-                title: `${livePred.risk_tier} Landslide Alert — ${selectedLocation.name}`,
-                location: `${selectedLocation.name} Sector 1`,
-                riskScore: Math.round(livePred.risk_score * 100),
-                severity: mappedTier,
-                timestamp: new Date().toLocaleTimeString(),
-                timeAgo: 'Just now',
-                summary: `Live ML assessment for ${selectedLocation.name}: ${Math.round(livePred.risk_score * 100)}% landslide risk based on real-time environmental telemetry.`,
-                affectedRoads: ['Main Hill Road', 'Highway Spur Km 42'],
-                recommendedAction: 'Continuous geotechnical monitoring. Prepare evacuation if risk escalates.',
-                status: 'ACTIVE',
-              },
-            ]
+            {
+              id: `alt-${selectedLocation.id}-01`,
+              title: `${livePred.risk_tier} Landslide Alert — ${selectedLocation.name}`,
+              location: `${selectedLocation.name} Sector 1`,
+              riskScore: Math.round(livePred.risk_score * 100),
+              severity: mappedTier,
+              timestamp: new Date().toLocaleTimeString(),
+              timeAgo: 'Just now',
+              summary: `Live ML assessment for ${selectedLocation.name}: ${Math.round(livePred.risk_score * 100)}% landslide risk based on real-time environmental telemetry.`,
+              affectedRoads: ['Main Hill Road', 'Highway Spur Km 42'],
+              recommendedAction: 'Continuous geotechnical monitoring. Prepare evacuation if risk escalates.',
+              status: 'ACTIVE',
+            },
+          ]
           : []),
         roads: base?.roads || [],
         sensors: base?.sensors || [],
@@ -375,7 +378,7 @@ export function App() {
       if (currentUser.role === 'admin') {
         setIsAdminConfigOpen(true);
       } else {
-        showToast('System calibration is restricted to GSI / LEWS administrators.');
+        showToast('System calibration is restricted to GSI / GeoAlert administrators.');
       }
       return;
     }
@@ -419,9 +422,8 @@ export function App() {
   if (loading || !districtData) {
     return (
       <div
-        className={`flex items-center justify-center min-h-screen ${
-          isLight ? 'bg-slate-50 text-slate-900' : 'bg-[#06140e] text-white'
-        }`}
+        className={`flex items-center justify-center min-h-screen ${isLight ? 'bg-slate-50 text-slate-900' : 'bg-[#06140e] text-white'
+          }`}
       >
         <div className="text-center space-y-4">
           <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white flex items-center justify-center mx-auto animate-pulse shadow-xl border border-emerald-400/40">
@@ -429,7 +431,7 @@ export function App() {
           </div>
           <div>
             <p className="text-base font-extrabold tracking-tight">
-              BHU-GUARD AI &bull; LEWS Operations Hub
+              BHU-GUARD AI &bull; GeoAlert Operations Hub
             </p>
             <p className="text-xs text-emerald-600 dark:text-emerald-400/80 font-mono mt-1">
               Loading backend telemetry for {selectedLocation.name}, {selectedLocation.state}...
@@ -442,9 +444,8 @@ export function App() {
 
   return (
     <div
-      className={`flex min-h-screen relative transition-colors duration-200 ${
-        isLight ? 'bg-[#f8fafc] text-slate-900' : 'bg-[#06140e] text-[#f1f5f9]'
-      }`}
+      className={`flex min-h-screen relative transition-colors duration-200 ${isLight ? 'bg-[#f8fafc] text-slate-900' : 'bg-[#06140e] text-[#f1f5f9]'
+        }`}
     >
       {/* Login Modal: 3-Role Selection without phone/OTP */}
       <LoginModal
@@ -469,11 +470,10 @@ export function App() {
       {/* Toast Notification */}
       {toastMessage && (
         <div
-          className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-semibold animate-in slide-in-from-bottom-4 border max-w-md ${
-            isLight
-              ? 'bg-white border-slate-300 text-slate-900 shadow-slate-300'
-              : 'bg-[#0c261b] border-emerald-500/50 text-white'
-          }`}
+          className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-semibold animate-in slide-in-from-bottom-4 border max-w-md ${isLight
+            ? 'bg-white border-slate-300 text-slate-900 shadow-slate-300'
+            : 'bg-[#0c261b] border-emerald-500/50 text-white'
+            }`}
         >
           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
           <span>{toastMessage}</span>
@@ -527,11 +527,10 @@ export function App() {
             <>
               {/* Header Banner & Live Protocol Indicator */}
               <div
-                className={`flex flex-col md:flex-row md:items-center justify-between gap-3 p-5 rounded-3xl border shadow-lg ${
-                  isLight
-                    ? 'bg-white border-slate-200'
-                    : 'bg-gradient-to-r from-[#0b2118] via-[#0d281e] to-[#071610] border-emerald-800/60'
-                }`}
+                className={`flex flex-col md:flex-row md:items-center justify-between gap-3 p-5 rounded-3xl border shadow-lg ${isLight
+                  ? 'bg-white border-slate-200'
+                  : 'bg-gradient-to-r from-[#0b2118] via-[#0d281e] to-[#071610] border-emerald-800/60'
+                  }`}
               >
                 <div>
                   <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400/90 mb-0.5">
@@ -565,13 +564,12 @@ export function App() {
                   </div>
 
                   <span
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-xl border ${
-                      isLight
-                        ? 'bg-slate-100 text-slate-700 border-slate-300'
-                        : 'bg-[#06140e] text-slate-200 border-emerald-800/80'
-                    }`}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-xl border ${isLight
+                      ? 'bg-slate-100 text-slate-700 border-slate-300'
+                      : 'bg-[#06140e] text-slate-200 border-emerald-800/80'
+                      }`}
                   >
-                    Protocol: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">GSI-LEWS Command</strong>
+                    Protocol: <strong className="text-emerald-600 dark:text-emerald-400 font-mono">GSI-GeoAlert Command</strong>
                   </span>
                 </div>
               </div>

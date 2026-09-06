@@ -1,10 +1,10 @@
 /**
  * ==============================================================================
- * BHU-GUARD LEWS - Central API Service Layer (SIH Problem Statement 26001)
+ * BHU-GUARD GeoAlert - Central API Service Layer (SIH Problem Statement 26001)
  * ==============================================================================
  * 
  * Centralizes backend communication, open-source GIS telemetry, and ML inference
- * for the Landslide Early Warning System.
+ * for the GeoAlert.
  * 
  * Base Backend URL: Defaults to http://127.0.0.1:8000
  * Configurable via Vite environment variable: VITE_API_BASE_URL
@@ -250,12 +250,20 @@ export const apiService = {
 
         const data = await res.json();
 
-        if (data.data_status === 'LIVE') {
+        if (
+          data.data_status !== 'UNAVAILABLE' &&
+          data.prediction != null &&
+          data.environmental != null
+        ) {
           return data as LiveRiskData;
         }
 
         // Surface rate-limit message specifically
-        const isRateLimited = data.missing_source === 'open-meteo';
+        const isRateLimited =
+          data.missing_source === 'open-meteo' ||
+          data.missing_source === 'NASA POWER' ||
+          data.missing_source === 'Open Topo Data' ||
+          data.rate_limited;
         const message = isRateLimited
           ? 'Live weather service temporarily rate-limited. Please wait ~60 seconds before retrying.'
           : (data.message || 'Live risk assessment temporarily unavailable.');
@@ -381,7 +389,7 @@ export const apiService = {
       const params = new URLSearchParams();
       if (query.trim()) params.append('q', query.trim());
       if (stateFilter && stateFilter !== 'ALL') params.append('state', stateFilter);
-      
+
       const res = await fetch(`${API_BASE_URL}/api/locations?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
@@ -454,7 +462,7 @@ export const apiService = {
   },
 
   /**
-   * Fetch complete dynamic LEWS dashboard telemetry for a location directly from backend
+   * Fetch complete dynamic GeoAlert dashboard telemetry for a location directly from backend
    */
   async fetchLocationDashboard(locationId: string): Promise<any | null> {
     try {

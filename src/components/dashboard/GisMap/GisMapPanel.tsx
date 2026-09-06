@@ -196,9 +196,9 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
       name: 'High-Res Satellite',
     },
     terrain: {
-      url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-      attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap',
-      name: 'Elevation Contours (OpenTopo)',
+      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      attribution: 'Map data: &copy; OpenStreetMap contributors',
+      name: 'Standard OpenStreetMap',
     },
   };
 
@@ -206,11 +206,10 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
 
   return (
     <div
-      className={`relative bg-[#F1F5F9] dark:bg-[#071711] rounded-2xl border border-slate-300 dark:border-emerald-800/60 overflow-hidden shadow-md flex flex-col transition-all duration-300 ${
-        isFullscreen
+      className={`relative bg-[#F1F5F9] dark:bg-[#071711] rounded-2xl border border-slate-300 dark:border-emerald-800/60 overflow-hidden shadow-md flex flex-col transition-all duration-300 ${isFullscreen
           ? 'fixed inset-0 z-[9999] rounded-none shadow-2xl h-[100dvh] w-screen max-w-full max-h-full overflow-hidden'
           : 'h-[540px] w-full'
-      }`}
+        }`}
     >
       {/* Map Header Bar */}
       <div className="bg-white/95 dark:bg-[#0b1f16]/95 backdrop-blur-xs px-4 py-2.5 border-b border-slate-200 dark:border-emerald-900/60 flex items-center justify-between z-10 shrink-0">
@@ -258,11 +257,10 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
                           setMapLayer(layer);
                           setShowLayersMenu(false);
                         }}
-                        className={`w-full text-left px-2.5 py-1.5 text-[12px] rounded-md transition-colors flex items-center justify-between ${
-                          mapLayer === layer
+                        className={`w-full text-left px-2.5 py-1.5 text-[12px] rounded-md transition-colors flex items-center justify-between ${mapLayer === layer
                             ? 'bg-emerald-600 text-white font-semibold'
                             : 'hover:bg-slate-100 dark:hover:bg-emerald-900/40 text-slate-700 dark:text-slate-200'
-                        }`}
+                          }`}
                       >
                         <span>{tileConfig[layer].name}</span>
                         {mapLayer === layer && <span className="text-[10px]">●</span>}
@@ -307,11 +305,10 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
           <button
             onClick={() => setIsFullscreen(!isFullscreen)}
             title={isFullscreen ? 'Exit Fullscreen (Esc)' : 'Expand Map Fullscreen'}
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg shadow-2xs transition-colors border ${
-              isFullscreen
+            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg shadow-2xs transition-colors border ${isFullscreen
                 ? 'bg-red-600 hover:bg-red-500 text-white border-red-500 ring-2 ring-red-400/30'
                 : 'text-slate-700 dark:text-slate-200 bg-white dark:bg-[#0c261c] hover:bg-slate-50 dark:hover:bg-[#123829] border-slate-300 dark:border-emerald-700/60'
-            }`}
+              }`}
           >
             {isFullscreen ? (
               <>
@@ -434,8 +431,8 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
                     road.status === 'BLOCKED'
                       ? '#DC2626'
                       : road.status === 'RESTRICTED'
-                      ? '#D97706'
-                      : '#16A34A',
+                        ? '#D97706'
+                        : '#16A34A',
                   weight: road.status === 'BLOCKED' ? 4.5 : 3,
                   dashArray: road.status === 'BLOCKED' ? '6, 4' : undefined,
                   opacity: 0.9,
@@ -448,11 +445,10 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
                         {road.name}
                       </span>
                       <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                          road.status === 'BLOCKED'
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${road.status === 'BLOCKED'
                             ? 'bg-red-100 text-red-700'
                             : 'bg-emerald-100 text-emerald-700'
-                        }`}
+                          }`}
                       >
                         {road.status}
                       </span>

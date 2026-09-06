@@ -34,7 +34,7 @@ export const AdminConfigModal: React.FC<AdminConfigModalProps> = ({
     setIsSaving(true);
     setTimeout(() => {
       setIsSaving(false);
-      onShowToast('✅ GSI LEWS System Parameters Updated: New I-D thresholds & IoT calibration applied.');
+      onShowToast('✅ GSI GeoAlert System Parameters Updated: New I-D thresholds & IoT calibration applied.');
       onClose();
     }, 600);
   };
@@ -57,7 +57,7 @@ export const AdminConfigModal: React.FC<AdminConfigModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-extrabold text-white tracking-tight">
-                  LEWS System Administration & Calibration
+                  GeoAlert System Administration & Calibration
                 </h3>
                 <span className="text-[9px] font-mono font-black uppercase px-2 py-0.5 rounded bg-purple-500 text-white">
                   GSI Admin
@@ -216,7 +216,7 @@ export const AdminConfigModal: React.FC<AdminConfigModalProps> = ({
             className="px-5 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2"
           >
             <Save className="w-3.5 h-3.5" />
-            <span>{isSaving ? 'Applying Parameters...' : 'Save & Calibrate LEWS'}</span>
+            <span>{isSaving ? 'Applying Parameters...' : 'Save & Calibrate GeoAlert'}</span>
           </button>
         </div>
       </div>

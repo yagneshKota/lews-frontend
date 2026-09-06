@@ -51,9 +51,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`w-64 bg-[#071610] border-r border-emerald-900/60 flex flex-col justify-between h-screen fixed md:sticky top-0 select-none z-50 md:z-20 shadow-2xl text-white transition-transform duration-200 ${
-          isOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        }`}
+        className={`w-64 bg-[#071610] border-r border-emerald-900/60 flex flex-col justify-between h-screen fixed md:sticky top-0 select-none z-50 md:z-20 shadow-2xl text-white transition-transform duration-200 ${isOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          }`}
       >
         {/* Brand Header */}
         <div>
@@ -68,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     BHU-GUARD
                   </h1>
                   <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-emerald-800 text-emerald-200 border border-emerald-600/40">
-                    LEWS
+                    GeoAlert
                   </span>
                 </div>
                 <p className="text-[10px] text-emerald-400/80 font-mono leading-tight">
@@ -87,95 +86,92 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-        {/* Navigation Items */}
-        <nav className="p-2.5 space-y-1">
-          <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400/70 flex items-center justify-between">
-            <span>Disaster Ops & Modeling</span>
+          {/* Navigation Items */}
+          <nav className="p-2.5 space-y-1">
+            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400/70 flex items-center justify-between">
+              <span>Disaster Ops & Modeling</span>
+            </div>
+
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeNav === item.id;
+              const badgeCount = item.id === 'alerts' ? criticalAlertsCount : item.badge;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    onNavigate(item.id);
+                    if (onCloseMobile) onCloseMobile();
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150 group text-left ${isActive
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-950/80 font-bold border border-emerald-400/30 ring-1 ring-emerald-400/30'
+                      : 'text-slate-300 hover:bg-[#0f291e] hover:text-white'
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon
+                      className={`w-4 h-4 transition-colors ${isActive
+                          ? 'text-white'
+                          : 'text-emerald-400 group-hover:text-emerald-300'
+                        }`}
+                    />
+                    <span>{item.label}</span>
+                  </div>
+
+                  {badgeCount !== undefined && badgeCount > 0 && (
+                    <span
+                      className={`px-2 py-0.5 text-[10px] font-black rounded-full ${isActive
+                          ? 'bg-red-500 text-white shadow-xs'
+                          : 'bg-red-600/30 text-red-300 border border-red-500/40'
+                        }`}
+                    >
+                      {badgeCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Footer Status */}
+        <div className="p-3 border-t border-emerald-900/60 bg-[#06120d] space-y-2">
+          {/* Real-time Telemetry Node Status */}
+          <div className="bg-[#0b1f16] border border-emerald-800/40 rounded-xl p-2.5 flex items-center justify-between shadow-inner">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <div>
+                <p className="text-[11px] font-bold text-white leading-tight">
+                  GSI Sentinel-1 InSAR
+                </p>
+                <p className="text-[9.5px] text-emerald-400/80 leading-tight font-mono">
+                  ML Pipeline Active
+                </p>
+              </div>
+            </div>
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
           </div>
 
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeNav === item.id;
-            const badgeCount = item.id === 'alerts' ? criticalAlertsCount : item.badge;
-
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  onNavigate(item.id);
-                  if (onCloseMobile) onCloseMobile();
-                }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150 group text-left ${
-                  isActive
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-950/80 font-bold border border-emerald-400/30 ring-1 ring-emerald-400/30'
-                    : 'text-slate-300 hover:bg-[#0f291e] hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon
-                    className={`w-4 h-4 transition-colors ${
-                      isActive
-                        ? 'text-white'
-                        : 'text-emerald-400 group-hover:text-emerald-300'
-                    }`}
-                  />
-                  <span>{item.label}</span>
-                </div>
-
-                {badgeCount !== undefined && badgeCount > 0 && (
-                  <span
-                    className={`px-2 py-0.5 text-[10px] font-black rounded-full ${
-                      isActive
-                        ? 'bg-red-500 text-white shadow-xs'
-                        : 'bg-red-600/30 text-red-300 border border-red-500/40'
-                    }`}
-                  >
-                    {badgeCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Footer Status */}
-      <div className="p-3 border-t border-emerald-900/60 bg-[#06120d] space-y-2">
-        {/* Real-time Telemetry Node Status */}
-        <div className="bg-[#0b1f16] border border-emerald-800/40 rounded-xl p-2.5 flex items-center justify-between shadow-inner">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <div>
-              <p className="text-[11px] font-bold text-white leading-tight">
-                GSI Sentinel-1 InSAR
+          {/* System Info Card */}
+          <div className="flex items-center gap-2 p-1.5 rounded-xl bg-emerald-950/40 border border-emerald-800/30">
+            <div className="w-7 h-7 rounded-lg bg-emerald-800 text-emerald-200 flex items-center justify-center text-[10px] font-black font-mono">
+              NE
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold text-white truncate">
+                GeoAlert Core Grid
               </p>
-              <p className="text-[9.5px] text-emerald-400/80 leading-tight font-mono">
-                ML Pipeline Active
+              <p className="text-[9.5px] text-slate-400 truncate">
+                Landslide Early Warning
               </p>
             </div>
           </div>
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
         </div>
-
-        {/* System Info Card */}
-        <div className="flex items-center gap-2 p-1.5 rounded-xl bg-emerald-950/40 border border-emerald-800/30">
-          <div className="w-7 h-7 rounded-lg bg-emerald-800 text-emerald-200 flex items-center justify-center text-[10px] font-black font-mono">
-            NE
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold text-white truncate">
-              LEWS Core Grid
-            </p>
-            <p className="text-[9.5px] text-slate-400 truncate">
-              Landslide Early Warning
-            </p>
-          </div>
-        </div>
-      </div>
-    </aside>
+      </aside>
     </>
   );
 };
