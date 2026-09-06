@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   MapContainer,
   TileLayer,
@@ -218,11 +219,11 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
 
   const centerCoords: [number, number] = selectedCoordinates || district.center;
 
-  return (
+  const mapContent = (
     <div
-      className={`relative bg-[#F1F5F9] dark:bg-[#071711] rounded-2xl border border-slate-300 dark:border-emerald-800/60 overflow-hidden shadow-md flex flex-col transition-all duration-300 ${isFullscreen
-          ? 'fixed inset-0 z-[9999] rounded-none shadow-2xl h-[100dvh] w-screen max-w-full max-h-full overflow-hidden'
-          : 'h-[540px] w-full'
+      className={`relative bg-[#F1F5F9] dark:bg-[#071711] overflow-hidden flex flex-col transition-all duration-300 ${isFullscreen
+          ? 'fixed inset-0 z-[99999] rounded-none shadow-2xl h-screen w-screen max-w-full max-h-full bg-slate-950'
+          : 'rounded-2xl border border-slate-300 dark:border-emerald-800/60 shadow-md h-[540px] w-full'
         }`}
     >
       {/* Map Header Bar */}
@@ -237,7 +238,7 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
               </span>
               {isFullscreen && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-600 text-white font-mono">
-                  Full View
+                  Full View Active
                 </span>
               )}
             </h2>
@@ -250,7 +251,7 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
           <div className="relative">
             <button
               onClick={() => setShowLayersMenu(!showLayersMenu)}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-[#0c261c] hover:bg-slate-50 dark:hover:bg-[#123829] border border-slate-300 dark:border-emerald-700/60 rounded-lg shadow-2xs transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-[#0c261c] hover:bg-slate-50 dark:hover:bg-[#123829] border border-slate-300 dark:border-emerald-700/60 rounded-lg shadow-2xs transition-colors cursor-pointer"
             >
               <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Layers</span>
@@ -271,7 +272,7 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
                           setMapLayer(layer);
                           setShowLayersMenu(false);
                         }}
-                        className={`w-full text-left px-2.5 py-1.5 text-[12px] rounded-md transition-colors flex items-center justify-between ${mapLayer === layer
+                        className={`w-full text-left px-2.5 py-1.5 text-[12px] rounded-md transition-colors flex items-center justify-between cursor-pointer ${mapLayer === layer
                             ? 'bg-emerald-600 text-white font-semibold'
                             : 'hover:bg-slate-100 dark:hover:bg-emerald-900/40 text-slate-700 dark:text-slate-200'
                           }`}
@@ -627,4 +628,19 @@ export const GisMapPanel: React.FC<GisMapPanelProps> = ({
       </div>
     </div>
   );
+
+  if (isFullscreen) {
+    return (
+      <>
+        <div className="h-[540px] w-full rounded-2xl border border-dashed border-slate-300 dark:border-emerald-800/40 bg-slate-100/50 dark:bg-emerald-950/20 flex flex-col items-center justify-center p-6 text-center text-slate-400">
+          <Maximize2 className="w-8 h-8 mb-2 text-emerald-500 animate-pulse" />
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">GIS Map Expanded Fullscreen</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Press ESC or click Exit Fullscreen to restore dashboard view</p>
+        </div>
+        {createPortal(mapContent, document.body)}
+      </>
+    );
+  }
+
+  return mapContent;
 };

@@ -1,9 +1,7 @@
 import React from 'react';
 import {
   Thermometer,
-  Activity,
   Gauge,
-  Satellite,
   Radio,
   Wind,
   Droplet,
