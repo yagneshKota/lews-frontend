@@ -274,10 +274,10 @@ export function App() {
               impact: liveEnv.slope_degrees > 35 ? 'high' : 'moderate',
             },
             {
-              factor: 'Subsurface Pore Pressure (Estimated)',
+              factor: 'Historical Landslide Susceptibility (Location)',
               percentage: 12,
-              metricValue: `${Math.round(18 + liveEnv.soil_moisture * 42)} kPa`,
-              category: 'movement',
+              metricValue: `${selectedLocation.name} region`,
+              category: 'historical',
               impact: 'moderate',
             },
           ]
@@ -310,7 +310,7 @@ export function App() {
         predictionWindow: isLive && livePred?.risk_tier === 'CRITICAL' ? '1–3 hours' : isLive ? '4–8 hours' : 'N/A – data unavailable',
         criticalAlertsCount: 0, // Must come from real backend alerts — not fabricated from ML tier
         highRiskZonesCount: dynamicZones.length,
-        blockedRoadsCount: isLive && livePred?.risk_tier === 'CRITICAL' ? 1 : 0,
+        blockedRoadsCount: 0, // No verified road-blockage data source — never infer from ML tier
         environmental: environmentalData,
         explainability,
         riskZones: dynamicZones,
@@ -547,7 +547,7 @@ export function App() {
                     {selectedLocation.name} Landslide Hazard Assessment & Command Grid
                   </h1>
                   <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">
-                    Multi-sensor InSAR, IoT Inclinometers, and Phase 3 LightGBM Landslide Inference
+                    Open-Meteo meteorological telemetry + Copernicus DEM terrain features + LightGBM Phase 3 ML Inference
                   </p>
                 </div>
 

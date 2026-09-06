@@ -1,12 +1,12 @@
 import React from 'react';
 import {
   Mountain,
-  Layers,
-  Ban,
   ArrowUpRight,
   TrendingUp,
   CloudRain,
   Zap,
+  Ban,
+  TriangleAlert,
 } from 'lucide-react';
 import type { District } from '../../types/dashboard';
 import { getRiskColor } from '../../utils/riskUtils';
@@ -38,13 +38,11 @@ export const SituationalSummary: React.FC<SituationalSummaryProps> = ({
   const riskInfo = getRiskColor(effectiveSeverity);
   const baseRainfall = district.environmental?.rainfall24h ?? null;
   const effectiveRainfall = isSimulatedSurge && baseRainfall !== null ? baseRainfall + 65 : baseRainfall;
-  const calculatedFoS: number | null = isDataUnavailable
-    ? null
-    : isSimulatedSurge
-    ? 0.74
-    : baseRisk !== null && baseRisk > 70
-    ? 1.08
-    : 1.42;
+
+  // Real DEM-derived terrain features from Copernicus DEM (backend Open-Meteo + elevation API)
+  // These are genuine ML model input features — not derived from risk score
+  const slopeDeg: number | null = district.riskZones?.[0]?.slopeAngle ?? null;
+  const elevM: number | null = district.riskZones?.[0]?.elevation ?? null;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -87,47 +85,43 @@ export const SituationalSummary: React.FC<SituationalSummaryProps> = ({
         </div>
       </div>
 
-      {/* 2. SLOPE FACTOR OF SAFETY (FoS) & CRITICAL SECTORS */}
+      {/* 2. TERRAIN PROFILE — Real DEM-derived slope & elevation (Copernicus DEM) */}
       <button
         onClick={onOpenSlopeStability || onOpenZones}
         className="group text-left bg-white dark:bg-[#0b1f16] rounded-2xl border border-slate-200 dark:border-emerald-800/60 p-5 shadow-2xs hover:border-emerald-500/50 hover:shadow-md transition-all cursor-pointer relative"
       >
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-            <Layers className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            Slope Stability (FoS)
+            <TriangleAlert className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            Terrain Profile
           </span>
           <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
         </div>
 
         <div className="flex items-baseline gap-2 mt-1">
-          <span className={`text-3xl font-black font-mono ${
-            calculatedFoS === null
-              ? 'text-slate-400 dark:text-slate-500'
-              : calculatedFoS < 1.0
-              ? 'text-red-600 dark:text-red-400'
-              : calculatedFoS < 1.25
-              ? 'text-amber-600 dark:text-amber-400'
-              : 'text-emerald-600 dark:text-emerald-400'
-          }`}>
-            {calculatedFoS === null ? 'N/A' : `FoS ${calculatedFoS.toFixed(2)}`}
-          </span>
-          <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-[#071711] text-slate-700 dark:text-slate-300">
-            {district.highRiskZonesCount} High-Risk Slopes
-          </span>
+          {slopeDeg !== null ? (
+            <>
+              <span className={`text-3xl font-black font-mono ${
+                slopeDeg > 45 ? 'text-red-600 dark:text-red-400'
+                : slopeDeg > 30 ? 'text-amber-600 dark:text-amber-400'
+                : 'text-emerald-600 dark:text-emerald-400'
+              }`}>
+                {slopeDeg.toFixed(1)}°
+              </span>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-[#071711] text-slate-700 dark:text-slate-300">
+                {slopeDeg > 45 ? 'Very Steep' : slopeDeg > 30 ? 'Steep' : 'Moderate'}
+              </span>
+            </>
+          ) : (
+            <span className="text-2xl font-black font-mono text-slate-400 dark:text-slate-500">N/A</span>
+          )}
         </div>
 
         <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-emerald-900/60 flex items-center justify-between text-[10.5px] text-slate-500 dark:text-slate-400">
-          <span>Slip Surface: <strong className={
-            calculatedFoS === null
-              ? 'text-slate-500 dark:text-slate-400'
-              : calculatedFoS < 1.0
-              ? 'text-red-600 dark:text-red-400 font-bold'
-              : 'text-slate-900 dark:text-white'
-          }>
-            {calculatedFoS === null ? 'Live data required' : calculatedFoS < 1.0 ? 'Shear Failure' : 'Marginal equilibrium'}
+          <span>Elevation: <strong className="text-slate-900 dark:text-white">
+            {elevM !== null ? `${elevM.toLocaleString()} m` : 'Unavailable'}
           </strong></span>
-          <span className="text-emerald-700 dark:text-emerald-400 font-bold group-hover:underline">DEM Profile &rarr;</span>
+          <span className="text-emerald-700 dark:text-emerald-400 font-bold group-hover:underline">Copernicus DEM &rarr;</span>
         </div>
       </button>
 

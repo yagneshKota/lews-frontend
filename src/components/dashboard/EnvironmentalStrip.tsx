@@ -36,7 +36,6 @@ export const EnvironmentalStrip: React.FC<EnvironmentalStripProps> = ({
   }
 
   const moisture = Math.min(100, data.soilMoisture + (isSimulatedSurge ? 20 : 0));
-  const porePressureKpa = Math.round(18 + (moisture / 100) * 42);
   // Note: groundMovement is null (no IoT inclinometer) — shown as "No Sensor" in UI
 
   return (
@@ -57,17 +56,17 @@ export const EnvironmentalStrip: React.FC<EnvironmentalStripProps> = ({
           </div>
         </div>
 
-        {/* 1. Piezometer Hydrostatic Pore Pressure */}
+        {/* 1. Volumetric Soil Moisture (Open-Meteo ECMWF IFS — real ML model input feature) */}
         <div className="flex items-center gap-2.5 px-3 border-r border-slate-100 dark:border-emerald-900/50 shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+          <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
             <Gauge className="w-4 h-4" />
           </div>
           <div>
             <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 leading-tight">
-              Piezometer Pore Pressure
+              Soil Moisture
             </p>
             <p className="text-[13px] font-extrabold text-slate-900 dark:text-white leading-tight font-mono">
-              {porePressureKpa} kPa <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">Hydrostatic</span>
+              {moisture}% <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold">ECMWF IFS</span>
             </p>
           </div>
         </div>
